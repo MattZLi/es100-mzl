@@ -5,10 +5,13 @@
 
 */
 
+//#include <stdio.h>
 #include <Wire.h>   // Include the I2C communications "Wire" library (Arduino IDE supplied)
 #include <QueueArray.h> // Include library for queues
 #include <Keyboard.h>
 #include <Mouse.h>
+
+#define INT_MAX 10000;
 
 //*****************************************************************************************
 // Initialize CONSTANTS and declare some global Variables
@@ -34,8 +37,8 @@ bool    toggle       = true;
 float   gain         = (15.0) / (8388608.0);  // Nominal Gain in units of (pf / count)
 
 // create 4 queues of integers corresponding with MEASx
-QueueArray <float> queue1;
-QueueArray <float> queue2;
+QueueArray <float> queueA;
+QueueArray <float> queueB;
 QueueArray <float> queue3;
 QueueArray <float> queue4;
 
@@ -44,8 +47,8 @@ QueueArray <float> queue4;
 int queue_length = 5;
 
 // create 4 floats to track the sum of each queue
-float sum1 = 0;
-float sum2 = 0;
+float filteredA = 0;
+float filteredB = 0;
 float sum3 = 0;
 float sum4 = 0;
 
@@ -59,6 +62,16 @@ float threshold1 = 5 * (float) queue_length;
 float threshold2 = 5 * (float) queue_length;
 float threshold3 = 6 * (float) queue_length;
 float threshold4 = 4.5 * (float) queue_length;
+
+// min and max
+float minA = (float) INT_MAX;
+float maxA = (float) 0.0;
+float minB = (float) INT_MAX;
+float maxB = (float) 0.0;
+
+// normalized
+float normA = (float) 0.0;
+float normB = (float) 0.0;
 
 // create 4 bools to track whether sensor is touched or not
 int touchA = 0;
@@ -109,8 +122,8 @@ void setup() {
 
   // enqueue each queue full of 0s
   for (int i = 0; i < queue_length; i++) {
-    queue1.enqueue(0);
-    queue2.enqueue(0);
+    queueA.enqueue(0);
+    queueB.enqueue(0);
     queue3.enqueue(0);
     queue4.enqueue(0);
   }
@@ -173,59 +186,27 @@ void read_meas(bool toggle) {
         case 0:
           // add to array of cap values
           // if array is full, shift the window like a FIFO queue
-          sum1 = sum1 - queue1.dequeue() + cap;
-          queue1.enqueue(cap);
           
-          if (sum1 > threshold1) {
-            //            touch1 = true;
-            touchA = 1;
-          } else {
-            //            touch1 = false;
-            touchA = 0;
-          }
-          
-          if (touchA == 1 && prev_touchA == 0) { // rising edge
-            riseA = (signed long) millis(); // time of rising edge
-            Serial.print("RISE A");
-            Serial.print(riseA);
-            Serial.println();
-            Serial.print("A: riseB - riseA");
-            Serial.print(abs(riseB - riseA));
-            Serial.println();
-          }
-        
-          if (touchA == 0 && prev_touchA == 1) { // falling edge
-            fallA = millis(); // time of falling edge
-//            Serial.print("FALL A");
-          }
+          minA = min(minA, cap);
+          maxA = max(maxA, cap);
+
+          normA = (cap - minA)/(maxA - minA);
+//          Serial.print("normA");
+//          Serial.print(" ");
+//          Serial.print(normA);
+//          Serial.print(" ");
           
           break;
         case 1:
-          sum2 = sum2 - queue2.dequeue() + cap;
-          queue2.enqueue(cap);
 
-          if (sum2 > threshold2) {
-            //            touch2 = true;
-            touchB = 1;
-          } else {
-            //            touch2 = false;
-            touchB = 0;
-          }
+          minB = min(minB, cap);
+          maxB = max(maxB, cap);
 
-          if (touchB == 1 && prev_touchB == 0) { // rising edge
-            riseB = (signed long) millis(); // time of rising edge
-            Serial.print("RISE B");
-            Serial.print(riseB);
-            Serial.println();
-            Serial.print("B: riseB - riseA");
-            Serial.print(abs(riseB - riseA));
-            Serial.println();
-          }
-        
-          if (touchB == 0 && prev_touchB == 1) { // falling edge
-            fallB = millis(); // time of falling edge
-//            Serial.print("FALL B");
-          }
+          normB = (cap - minB)/(maxB - minB);
+//          Serial.print("normB");
+//          Serial.print(" ");
+//          Serial.print(normB);
+//          Serial.print(" ");
           
           break;
         case 2:
@@ -334,13 +315,25 @@ void read_meas(bool toggle) {
         default:
           break;
       }
+
+      float pos_vert = (normA - normB + 1.0)/2.0;
+      Serial.print("pos_vert");
+      Serial.print(" ");
+      Serial.print(pos_vert);
+      Serial.print(" ");
+
+      Serial.print("center");
+      Serial.print(" ");
+      Serial.print(0.5);
+      Serial.print(" ");
+
 //      Serial.print("riseA - riseB");
       int delta_t = abs(riseA - riseB);
 //      Serial.print((riseA - riseB));
 //      Serial.println();
 //      if (((riseB - riseA) < 100) && ((riseB - riseA) > 0)) {
       if ((delta_t < 100) && (delta_t > 0)) {
-        Serial.print("TOUCH");
+//        Serial.print("TOUCH");
 //        Mouse.click(MOUSE_LEFT);
         riseA = 0;
         riseB = 0;
@@ -348,12 +341,12 @@ void read_meas(bool toggle) {
         state_queue.enqueue(0);
         state_queue.dequeue();
       } else if (QueueEqual(&state_queue, &up_queue)) {
-         Serial.print("UP");
+//         Serial.print("UP");
 //         Keyboard.write(KEY_UP_ARROW);
          state_queue.enqueue(0);
          state_queue.dequeue();
       } else if (QueueEqual(&state_queue, &down_queue)) {
-         Serial.print("DOWN");
+//         Serial.print("DOWN");
 //         Keyboard.write(KEY_DOWN_ARROW);
          state_queue.enqueue(0);
          state_queue.dequeue();
@@ -367,7 +360,7 @@ void read_meas(bool toggle) {
     }
   }
 
-//  Serial.println();
+  Serial.println();
 }
 
 // **********  Read/Write 16 bit value from an FDC1004 register *******************
@@ -419,4 +412,7 @@ bool QueueEqual(QueueArray <int>* A, QueueArray <int>* B) {
   }
   return true;
 }
+
+
+
 
