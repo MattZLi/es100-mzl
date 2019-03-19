@@ -69,7 +69,7 @@ float filt_mag = (float) 0.0;
 float abs_mag = (float) 0.0;
 
 float derivative_sum = (float) 0.0;
-// float integral = (float) 0.0;
+float integral = (float) 0.0;
 
 float capA = (float) 0.0;
 float capB = (float) 0.0;
@@ -219,23 +219,30 @@ void read_meas(bool toggle) {
       Serial.print((float) derivative_sum);
       Serial.print(" ");
 
+      Serial.print("integ");
+      Serial.print(" ");
+      Serial.print((float) integral);
+      Serial.print(" ");
+
       Serial.println();
 
 
 
       if ((filt_mag/(float) queue_length) > mag_threshold) {
         derivative_sum += mag*(pos_vert - prev_pos_vert);
-
+        integral += derivative_sum;
       } else {
-        if (derivative_sum < 0) {
+        if (integral < 0) {
           Serial.print("DOWN");
           Keyboard.write('d');
           derivative_sum = 0;
+          integral = 0;
 
-        } else if (derivative_sum > 0) {
+        } else if (integral > 0) {
           Serial.print("UP");
           Keyboard.write('u');
           derivative_sum = 0;
+          integral = 0;
 
         }
         
