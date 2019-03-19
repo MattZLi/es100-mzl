@@ -69,7 +69,7 @@ float filt_mag = (float) 0.0;
 float abs_mag = (float) 0.0;
 
 float derivative_sum = (float) 0.0;
-float integral = (float) 0.0;
+// float integral = (float) 0.0;
 
 float capA = (float) 0.0;
 float capB = (float) 0.0;
@@ -193,11 +193,10 @@ void read_meas(bool toggle) {
       Serial.print(mag - 2.0); // shift the graph down
       Serial.print(" ");
 
-
-      Serial.print("abs_mag");
-      Serial.print(" ");
-      Serial.print(abs_mag);
-      Serial.print(" ");
+      // Serial.print("abs_mag");
+      // Serial.print(" ");
+      // Serial.print(abs_mag);
+      // Serial.print(" ");
 
       Serial.print("center");
       Serial.print(" ");
@@ -228,12 +227,12 @@ void read_meas(bool toggle) {
         derivative_sum += mag*(pos_vert - prev_pos_vert);
 
       } else {
-        if (integral < 0) {
+        if (derivative_sum < 0) {
           Serial.print("DOWN");
           Keyboard.write('d');
           derivative_sum = 0;
 
-        } else if (integral > 0) {
+        } else if (derivative_sum > 0) {
           Serial.print("UP");
           Keyboard.write('u');
           derivative_sum = 0;
@@ -242,8 +241,8 @@ void read_meas(bool toggle) {
         
       }
 
-      unsigned long curr_t = millis();
       // refresh mins and maxes every 5 seconds
+      unsigned long curr_t = millis();
       if ((curr_t - last_t) > 5000) {
         last_t = curr_t;
         maxA = (maxA + temp_maxA)/2.0;
