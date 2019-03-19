@@ -39,7 +39,7 @@ float   gain         = (15.0) / (8388608.0);  // Nominal Gain in units of (pf / 
 // define length of queue
 int queue_length = 5;
 
-// QueueArray <float> pos_queue;
+QueueArray <float> mag_queue;
 
 // min and max
 float minA = (float) INT_MAX;
@@ -61,12 +61,15 @@ float normB = (float) 0.0;
 
 float pos_vert = (float) 0.0;
 float prev_pos_vert = (float) 0.0;
-// float filt_pos_vert = (float) 0.0;
+
 
 float mag = (float) 0.0;
-float mag_threshold = (float) 15.0;
+float mag_threshold = (float) 14.0;
+float filt_mag = (float) 0.0;
+float abs_mag = (float) 0.0;
 
 float derivative_sum = (float) 0.0;
+float integral = (float) 0.0;
 
 float capA = (float) 0.0;
 float capB = (float) 0.0;
@@ -96,9 +99,9 @@ void setup() {
   write16(FDC_CONFIG, 0x0DF0);      //D = 400Hz, 5 = 100Hz
   
   // enqueue each queue full of 0s
-  // for (int i = 0; i < queue_length; i++){
-  //   pos_queue.enqueue(0);
-  // }
+  for (int i = 0; i < queue_length; i++){
+    mag_queue.enqueue(0);
+  }
 }
 
 // *********************************************************************
@@ -176,12 +179,13 @@ void read_meas(bool toggle) {
       Serial.print(pos_vert);
       Serial.print(" ");
 
-      // fil_pos_vert = filt_pos_vert - pos_queue.dequeue() + pos_vert;
-      // pos_queue.enqueue(pos_vert);
-      // Serial.print("filt_pos_vert");
-      // Serial.print(" ");
-      // Serial.print(filt_pos_vert);
-      // Serial.print(" ");
+      abs_mag = capA + capB;
+      filt_mag = filt_mag - mag_queue.dequeue() + abs_mag;
+      mag_queue.enqueue(abs_mag);
+      Serial.print("filt_mag");
+      Serial.print(" ");
+      Serial.print(filt_mag/(float) queue_length);
+      Serial.print(" ");
 
       mag = (normA + normB)/2.0;
       Serial.print("mag");
@@ -192,7 +196,7 @@ void read_meas(bool toggle) {
 
       Serial.print("abs_mag");
       Serial.print(" ");
-      Serial.print(capA + capB);
+      Serial.print(abs_mag);
       Serial.print(" ");
 
       Serial.print("center");
@@ -210,26 +214,37 @@ void read_meas(bool toggle) {
       Serial.print(0.0);
       Serial.print(" ");
 
+
+      Serial.print("deriv");
+      Serial.print(" ");
+      Serial.print((float) derivative_sum);
+      Serial.print(" ");
+
       Serial.println();
 
-      if (capA + capB > mag_threshold) {
+
+
+      if ((filt_mag/(float) queue_length) > mag_threshold) {
         derivative_sum += mag*(pos_vert - prev_pos_vert);
+
       } else {
-        if (derivative_sum < 0) {
+        if (integral < 0) {
           Serial.print("DOWN");
           Keyboard.write('d');
           derivative_sum = 0;
-        } else if (derivative_sum > 0) {
+
+        } else if (integral > 0) {
           Serial.print("UP");
           Keyboard.write('u');
           derivative_sum = 0;
+
         }
         
       }
 
       unsigned long curr_t = millis();
-      // refresh mins and maxes every 10 seconds
-      if ((curr_t - last_t) > 10000) {
+      // refresh mins and maxes every 5 seconds
+      if ((curr_t - last_t) > 5000) {
         last_t = curr_t;
         maxA = (maxA + temp_maxA)/2.0;
         minA = (minA + temp_minA)/2.0;
