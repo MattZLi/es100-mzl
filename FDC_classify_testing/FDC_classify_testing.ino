@@ -46,6 +46,8 @@ float minA = (float) INT_MAX;
 float maxA = (float) 0.0;
 float minB = (float) INT_MAX;
 float maxB = (float) 0.0;
+float minC = (float) INT_MAX;
+float maxC = (float) 0.0;
 
 unsigned long last_t = 0;
 
@@ -53,18 +55,21 @@ float temp_minA = (float) INT_MAX;
 float temp_maxA = (float) 0.0;
 float temp_minB = (float) INT_MAX;
 float temp_maxB = (float) 0.0;
+float temp_minC = (float) INT_MAX;
+float temp_maxC = (float) 0.0;
 
 
 // normalized
 float normA = (float) 0.0;
 float normB = (float) 0.0;
+float normC = (float) 0.0;
 
 float pos_vert = (float) 0.0;
 float prev_pos_vert = (float) 0.0;
 
 
 float mag = (float) 0.0;
-float mag_threshold = (float) 14.0;
+float mag_threshold = (float) 11.0;
 float filt_mag = (float) 0.0;
 float abs_mag = (float) 0.0;
 
@@ -73,6 +78,7 @@ float integral = (float) 0.0;
 
 float capA = (float) 0.0;
 float capB = (float) 0.0;
+float capC = (float) 0.0;
 
 
 // ****************************************************************************************
@@ -126,8 +132,8 @@ void read_meas(bool toggle) {
   float    cap = 0;    // floating point value of measured capacitance (in pf)
 
   int j = 0;
-  for (int i = 0; i <= 1; i++) {
-//  for (int i = 0; i <= 3; i++) {
+  // for (int i = 0; i <= 1; i++) {
+  for (int i = 0; i <= 3; i++) {
     lsb = read16(FDC_RD_M[j++]);     // MEASj LSB
     msb = read16(FDC_RD_M[j++]);     // MEASj MSB
     val = ((msb << 16) + lsb) >> 8;  // 24 bit combined MSB and LSB
@@ -163,6 +169,14 @@ void read_meas(bool toggle) {
           
           break;
         case 2:
+          capC = cap;
+
+          minC = min(minC, capC);
+          maxC = max(maxC, capC);
+          temp_minC = min(temp_minC, capC);
+          temp_maxC = max(temp_maxC, capC);
+
+          normC = (capC - minC)/(maxC - minC);
 
           break;
         case 3:
@@ -172,6 +186,15 @@ void read_meas(bool toggle) {
           break;
       }
 
+      Serial.print("capA");
+      Serial.print(" ");
+      Serial.print(capA);
+      Serial.print(" ");
+
+      Serial.print("capB");
+      Serial.print(" ");
+      Serial.print(capB);
+      Serial.print(" ");
 
       pos_vert = (normA - normB + 1.0)/2.0;
       Serial.print("pos_vert");
@@ -232,25 +255,34 @@ void read_meas(bool toggle) {
         derivative_sum += mag*(pos_vert - prev_pos_vert);
         integral += derivative_sum;
       } else {
-        if (integral < 0) {
+        if (integral < -0.2) {
           Serial.print("DOWN");
+          
           Keyboard.write('d');
-          derivative_sum = 0;
-          integral = 0;
+          Keyboard.println(integral);
+          derivative_sum = (float) 0;
+          integral = (float) 0;
 
-        } else if (integral > 0) {
+        } else if (integral > 0.2) {
           Serial.print("UP");
           Keyboard.write('u');
-          derivative_sum = 0;
-          integral = 0;
+          Keyboard.println(integral);
+          derivative_sum = (float) 0;
+          integral = (float) 0;
 
+        } else if (integral != 0) {
+          Serial.print("TOUCH");
+          Keyboard.write('t');
+          Keyboard.println(integral);
+          derivative_sum = (float) 0;
+          integral = (float) 0;
         }
         
       }
 
       // refresh mins and maxes every 5 seconds
       unsigned long curr_t = millis();
-      if ((curr_t - last_t) > 5000) {
+      if ((curr_t - last_t) > 10000) {
         last_t = curr_t;
         maxA = (maxA + temp_maxA)/2.0;
         minA = (minA + temp_minA)/2.0;
