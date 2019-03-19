@@ -39,6 +39,8 @@ float   gain         = (15.0) / (8388608.0);  // Nominal Gain in units of (pf / 
 // define length of queue
 int queue_length = 5;
 
+// QueueArray <float> pos_queue;
+
 // min and max
 float minA = (float) INT_MAX;
 float maxA = (float) 0.0;
@@ -56,8 +58,15 @@ float temp_maxB = (float) 0.0;
 // normalized
 float normA = (float) 0.0;
 float normB = (float) 0.0;
+
 float pos_vert = (float) 0.0;
+float prev_pos_vert = (float) 0.0;
+// float filt_pos_vert = (float) 0.0;
+
 float mag = (float) 0.0;
+float mag_threshold = (float) 15.0;
+
+float derivative_sum = (float) 0.0;
 
 float capA = (float) 0.0;
 float capB = (float) 0.0;
@@ -86,6 +95,10 @@ void setup() {
   //
   write16(FDC_CONFIG, 0x0DF0);      //D = 400Hz, 5 = 100Hz
   
+  // enqueue each queue full of 0s
+  // for (int i = 0; i < queue_length; i++){
+  //   pos_queue.enqueue(0);
+  // }
 }
 
 // *********************************************************************
@@ -126,9 +139,6 @@ void read_meas(bool toggle) {
           // if array is full, shift the window like a FIFO queue
 
           capA = cap;
-          
-          
-          
 
           minA = min(minA, capA);
           maxA = max(maxA, capA);
@@ -137,11 +147,9 @@ void read_meas(bool toggle) {
 
           normA = (capA - minA)/(maxA - minA);
           
-          
           break;
         case 1:
           capB = cap;
-          
 
           minB = min(minB, capB);
           maxB = max(maxB, capB);
@@ -149,8 +157,6 @@ void read_meas(bool toggle) {
           temp_maxB = max(temp_maxB, capB);
 
           normB = (capB - minB)/(maxB - minB);
-          
-          
           
           break;
         case 2:
@@ -163,25 +169,6 @@ void read_meas(bool toggle) {
           break;
       }
 
-      // Serial.print("capA");
-      // Serial.print(" ");
-      // Serial.print(capA);
-      // Serial.print(" ");
-
-      // Serial.print("capB");
-      // Serial.print(" ");
-      // Serial.print(capB);
-      // Serial.print(" ");
-
-      // Serial.print("normA");
-      // Serial.print(" ");
-      // Serial.print(normA);
-      // Serial.print(" ");
-
-      // Serial.print("normB");
-      // Serial.print(" ");
-      // Serial.print(normB);
-      // Serial.print(" ");
 
       pos_vert = (normA - normB + 1.0)/2.0;
       Serial.print("pos_vert");
@@ -189,10 +176,23 @@ void read_meas(bool toggle) {
       Serial.print(pos_vert);
       Serial.print(" ");
 
-      mag = (normA + normB)/2.0 - 2.0;
+      // fil_pos_vert = filt_pos_vert - pos_queue.dequeue() + pos_vert;
+      // pos_queue.enqueue(pos_vert);
+      // Serial.print("filt_pos_vert");
+      // Serial.print(" ");
+      // Serial.print(filt_pos_vert);
+      // Serial.print(" ");
+
+      mag = (normA + normB)/2.0;
       Serial.print("mag");
       Serial.print(" ");
-      Serial.print(mag);
+      Serial.print(mag - 2.0); // shift the graph down
+      Serial.print(" ");
+
+
+      Serial.print("abs_mag");
+      Serial.print(" ");
+      Serial.print(capA + capB);
       Serial.print(" ");
 
       Serial.print("center");
@@ -212,9 +212,24 @@ void read_meas(bool toggle) {
 
       Serial.println();
 
+      if (capA + capB > mag_threshold) {
+        derivative_sum += mag*(pos_vert - prev_pos_vert);
+      } else {
+        if (derivative_sum < 0) {
+          Serial.print("DOWN");
+          Keyboard.write('d');
+          derivative_sum = 0;
+        } else if (derivative_sum > 0) {
+          Serial.print("UP");
+          Keyboard.write('u');
+          derivative_sum = 0;
+        }
+        
+      }
+
       unsigned long curr_t = millis();
-      // refresh mins and maxes every 3 seconds
-      if ((curr_t - last_t) > 3000) {
+      // refresh mins and maxes every 10 seconds
+      if ((curr_t - last_t) > 10000) {
         last_t = curr_t;
         maxA = (maxA + temp_maxA)/2.0;
         minA = (minA + temp_minA)/2.0;
@@ -226,6 +241,8 @@ void read_meas(bool toggle) {
         temp_minB = (float) INT_MAX;
         temp_maxB = (float) 0.0;
       }
+
+      prev_pos_vert = pos_vert;
 
     }
     
@@ -283,6 +300,7 @@ bool QueueEqual(QueueArray <int>* A, QueueArray <int>* B) {
   }
   return true;
 }
+
 
 
 
