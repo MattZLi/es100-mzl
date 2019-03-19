@@ -5,10 +5,13 @@
 
 */
 
+//#include <stdio.h>
 #include <Wire.h>   // Include the I2C communications "Wire" library (Arduino IDE supplied)
 #include <QueueArray.h> // Include library for queues
 #include <Keyboard.h>
 #include <Mouse.h>
+
+#define INT_MAX 10000;
 
 //*****************************************************************************************
 // Initialize CONSTANTS and declare some global Variables
@@ -33,56 +36,50 @@ uint8_t FDC_RD_M[]   = {1, 0, 3, 2, 5, 4, 7, 6}; // Addr's to read meas. value f
 bool    toggle       = true;
 float   gain         = (15.0) / (8388608.0);  // Nominal Gain in units of (pf / count)
 
-// create 4 queues of integers corresponding with MEASx
-QueueArray <float> queue1;
-QueueArray <float> queue2;
-QueueArray <float> queue3;
-QueueArray <float> queue4;
-
 // define length of queue
-//int queue_length = 10;
 int queue_length = 5;
 
-// create 4 floats to track the sum of each queue
-float sum1 = 0;
-float sum2 = 0;
-float sum3 = 0;
-float sum4 = 0;
+QueueArray <float> mag_queue;
 
-// create 4 ints to store threshold of touch
-// should be more like cap value * (float) queue_length
-//float threshold1 = 70;
-//float threshold2 = 60;
-//float threshold3 = 45;
-//float threshold4 = 45;
-float threshold1 = 5 * (float) queue_length;
-float threshold2 = 5 * (float) queue_length;
-float threshold3 = 6 * (float) queue_length;
-float threshold4 = 4.5 * (float) queue_length;
+// min and max
+float minA = (float) INT_MAX;
+float maxA = (float) 0.0;
+float minB = (float) INT_MAX;
+float maxB = (float) 0.0;
+float minC = (float) INT_MAX;
+float maxC = (float) 0.0;
 
-// create 4 bools to track whether sensor is touched or not
-int touchA = 0;
-int touchB = 0;
-int touch3 = 0;
-int touch4 = 0;
+unsigned long last_t = 0;
 
-int prev_touchA;
-int prev_touchB;
-
-signed long riseA = 0;
-signed long fallA = 0;
-signed long riseB = 0;
-signed long fallB = 0;
-
-QueueArray <int> up_queue;
-QueueArray <int> down_queue;
-QueueArray <int> state_queue;
-
-int state = 0;
-int prev_state = 0;
+float temp_minA = (float) INT_MAX;
+float temp_maxA = (float) 0.0;
+float temp_minB = (float) INT_MAX;
+float temp_maxB = (float) 0.0;
+float temp_minC = (float) INT_MAX;
+float temp_maxC = (float) 0.0;
 
 
-int pos;
+// normalized
+float normA = (float) 0.0;
+float normB = (float) 0.0;
+float normC = (float) 0.0;
+
+float pos_vert = (float) 0.0;
+float prev_pos_vert = (float) 0.0;
+
+
+float mag = (float) 0.0;
+float mag_threshold = (float) 11.0;
+float filt_mag = (float) 0.0;
+float abs_mag = (float) 0.0;
+
+float derivative_sum = (float) 0.0;
+float integral = (float) 0.0;
+
+float capA = (float) 0.0;
+float capB = (float) 0.0;
+float capC = (float) 0.0;
+
 
 // ****************************************************************************************
 // Initialize FDC1004 device
@@ -90,7 +87,7 @@ int pos;
 void setup() {
   Wire.begin();              // join i2c bus (address optional for master)
   Serial.begin(115200);      // start serial communication at 115200 bps
-
+  
   write16(FDC_CONFIG, 0x8000);  // Issue Reset Command to chip
 
   // Setup the MEASx Registers for single ended measurements, CINx to MEASx
@@ -106,36 +103,11 @@ void setup() {
   //     all 4 MEASx's enabled.
   //
   write16(FDC_CONFIG, 0x0DF0);      //D = 400Hz, 5 = 100Hz
-
-  // enqueue each queue full of 0s
-  for (int i = 0; i < queue_length; i++) {
-    queue1.enqueue(0);
-    queue2.enqueue(0);
-    queue3.enqueue(0);
-    queue4.enqueue(0);
-  }
-
-  for (int i = 0; i < 4; i++) {
-    state_queue.enqueue(0);
-  }
-  Serial.print(state_queue.count());
-
-  // up: 0, 1, 3, 2
-  up_queue.enqueue(0);
-  up_queue.enqueue(1);
-  up_queue.enqueue(3);
-  up_queue.enqueue(2);
-
-  Serial.print(up_queue.count());
-
-  // down: 0, 2, 3, 1
-  down_queue.enqueue(0);
-  down_queue.enqueue(2);
-  down_queue.enqueue(3);
-  down_queue.enqueue(1);
-
-  Serial.print(down_queue.count());
   
+  // enqueue each queue full of 0s
+  for (int i = 0; i < queue_length; i++){
+    mag_queue.enqueue(0);
+  }
 }
 
 // *********************************************************************
@@ -160,6 +132,7 @@ void read_meas(bool toggle) {
   float    cap = 0;    // floating point value of measured capacitance (in pf)
 
   int j = 0;
+  // for (int i = 0; i <= 1; i++) {
   for (int i = 0; i <= 3; i++) {
     lsb = read16(FDC_RD_M[j++]);     // MEASj LSB
     msb = read16(FDC_RD_M[j++]);     // MEASj MSB
@@ -173,201 +146,162 @@ void read_meas(bool toggle) {
         case 0:
           // add to array of cap values
           // if array is full, shift the window like a FIFO queue
-          sum1 = sum1 - queue1.dequeue() + cap;
-          queue1.enqueue(cap);
-          
-          if (sum1 > threshold1) {
-            //            touch1 = true;
-            touchA = 1;
-          } else {
-            //            touch1 = false;
-            touchA = 0;
-          }
-          
-          if (touchA == 1 && prev_touchA == 0) { // rising edge
-            riseA = (signed long) millis(); // time of rising edge
-            Serial.print("RISE A");
-            Serial.print(riseA);
-            Serial.println();
-            Serial.print("A: riseB - riseA");
-            Serial.print(abs(riseB - riseA));
-            Serial.println();
-          }
-        
-          if (touchA == 0 && prev_touchA == 1) { // falling edge
-            fallA = millis(); // time of falling edge
-//            Serial.print("FALL A");
-          }
+
+          capA = cap;
+
+          minA = min(minA, capA);
+          maxA = max(maxA, capA);
+          temp_minA = min(temp_minA, capA);
+          temp_maxA = max(temp_maxA, capA);
+
+          normA = (capA - minA)/(maxA - minA);
           
           break;
         case 1:
-          sum2 = sum2 - queue2.dequeue() + cap;
-          queue2.enqueue(cap);
+          capB = cap;
 
-          if (sum2 > threshold2) {
-            //            touch2 = true;
-            touchB = 1;
-          } else {
-            //            touch2 = false;
-            touchB = 0;
-          }
+          minB = min(minB, capB);
+          maxB = max(maxB, capB);
+          temp_minB = min(temp_minB, capB);
+          temp_maxB = max(temp_maxB, capB);
 
-          if (touchB == 1 && prev_touchB == 0) { // rising edge
-            riseB = (signed long) millis(); // time of rising edge
-            Serial.print("RISE B");
-            Serial.print(riseB);
-            Serial.println();
-            Serial.print("B: riseB - riseA");
-            Serial.print(abs(riseB - riseA));
-            Serial.println();
-          }
-        
-          if (touchB == 0 && prev_touchB == 1) { // falling edge
-            fallB = millis(); // time of falling edge
-//            Serial.print("FALL B");
-          }
+          normB = (capB - minB)/(maxB - minB);
           
           break;
         case 2:
-//          Serial.print("sensor3");
-//          Serial.print(" ");
-//          Serial.print(cap);
-//          Serial.print(" ");
-          sum3 = sum3 - queue3.dequeue() + cap;
-          queue3.enqueue(cap);
-          if (sum3 > threshold3) {
-            touch3 = 3;
-          } else {
-            touch3 = 0;
-          }
-//          Serial.print(touch3);
-//          Serial.print(" ");
+          capC = cap;
+
+          minC = min(minC, capC);
+          maxC = max(maxC, capC);
+          temp_minC = min(temp_minC, capC);
+          temp_maxC = max(temp_maxC, capC);
+
+          normC = (capC - minC)/(maxC - minC);
+
           break;
         case 3:
-//          Serial.print("sensor3");
-//          Serial.print(" ");
-//          Serial.print(cap);
-//          Serial.print(" ");
-          sum4 = sum4 - queue4.dequeue() + cap;
-          queue4.enqueue(cap);
-          if (sum4 > threshold4) {
-            touch4 = 4;
-          } else {
-            touch4 = 0;
-          }
-//          Serial.print(touch4);
-//          Serial.print(" ");
+
           break;
         default:
           break;
       }
 
-      switch(state) {
-        case 0: // A = 0, B = 0
-          if (touchA == 1 && prev_touchA == 0) { // rising edge on A
-            state = 2;
-//            Serial.print("state: ");
-//            Serial.print(state);
-            state_queue.enqueue(state);
-            state_queue.dequeue();
-          }
-          if (touchB == 1 && prev_touchB == 0) { // rising edge on B
-            state = 1;
-//            Serial.print("state: ");
-//            Serial.print(state);
-            state_queue.enqueue(state);
-            state_queue.dequeue();
-          }
-          break;
-    
-        case 1: // A = 0, B = 1
-          if (touchA == 1 && prev_touchA == 0) { // rising edge on A
-            state = 3;
-//            Serial.print("state: ");
-//            Serial.print(state);
-            state_queue.enqueue(state);
-            state_queue.dequeue();
-          }
-          if (touchB == 0 && prev_touchB == 1) { // falling edge on B
-            state = 0;
-//            Serial.print("state: ");
-//            Serial.print(state);
-            state_queue.enqueue(state);
-            state_queue.dequeue();
-          }
-          break;
+      Serial.print("capA");
+      Serial.print(" ");
+      Serial.print(capA);
+      Serial.print(" ");
+
+      Serial.print("capB");
+      Serial.print(" ");
+      Serial.print(capB);
+      Serial.print(" ");
+
+      pos_vert = (normA - normB + 1.0)/2.0;
+      Serial.print("pos_vert");
+      Serial.print(" ");
+      Serial.print(pos_vert);
+      Serial.print(" ");
+
+      abs_mag = capA + capB;
+      filt_mag = filt_mag - mag_queue.dequeue() + abs_mag;
+      mag_queue.enqueue(abs_mag);
+      Serial.print("filt_mag");
+      Serial.print(" ");
+      Serial.print(filt_mag/(float) queue_length);
+      Serial.print(" ");
+
+      mag = (normA + normB)/2.0;
+      Serial.print("mag");
+      Serial.print(" ");
+      Serial.print(mag - 2.0); // shift the graph down
+      Serial.print(" ");
+
+      // Serial.print("abs_mag");
+      // Serial.print(" ");
+      // Serial.print(abs_mag);
+      // Serial.print(" ");
+
+      Serial.print("center");
+      Serial.print(" ");
+      Serial.print(0.5);
+      Serial.print(" ");
+
+      Serial.print("top");
+      Serial.print(" ");
+      Serial.print(1.0);
+      Serial.print(" ");
+
+      Serial.print("bot");
+      Serial.print(" ");
+      Serial.print(0.0);
+      Serial.print(" ");
+
+
+      Serial.print("deriv");
+      Serial.print(" ");
+      Serial.print((float) derivative_sum);
+      Serial.print(" ");
+
+      Serial.print("integ");
+      Serial.print(" ");
+      Serial.print((float) integral);
+      Serial.print(" ");
+
+      Serial.println();
+
+
+
+      if ((filt_mag/(float) queue_length) > mag_threshold) {
+        derivative_sum += mag*(pos_vert - prev_pos_vert);
+        integral += derivative_sum;
+      } else {
+        if (integral < -0.2) {
+          Serial.print("DOWN");
+          
+          Keyboard.write('d');
+          Keyboard.println(integral);
+          derivative_sum = (float) 0;
+          integral = (float) 0;
+
+        } else if (integral > 0.2) {
+          Serial.print("UP");
+          Keyboard.write('u');
+          Keyboard.println(integral);
+          derivative_sum = (float) 0;
+          integral = (float) 0;
+
+        } else if (integral != 0) {
+          Serial.print("TOUCH");
+          Keyboard.write('t');
+          Keyboard.println(integral);
+          derivative_sum = (float) 0;
+          integral = (float) 0;
+        }
         
-        case 2: // A = 1, B = 0
-          if (touchA == 0 && prev_touchA == 1) { // falling edge on A
-            state = 0;
-//            Serial.print("state: ");
-//            Serial.print(state);
-            state_queue.enqueue(state);
-            state_queue.dequeue();
-          }
-          if (touchB == 1 && prev_touchB == 0) { // rising edge on B
-            state = 3;
-//            Serial.print("state: ");
-//            Serial.print(state);
-            state_queue.enqueue(state);
-            state_queue.dequeue();
-          }
-          break;
-    
-        case 3: // A = 1, B = 1
-          if (touchA == 0 && prev_touchA == 1) { // falling edge on A
-            state = 1;
-//            Serial.print("state: ");
-//            Serial.print(state);
-            state_queue.enqueue(state);
-            state_queue.dequeue();
-          }
-          if (touchB == 0 && prev_touchB == 1) { // falling edge on B
-            state = 2;
-//            Serial.print("state: ");
-//            Serial.print(state);
-            state_queue.enqueue(state);
-            state_queue.dequeue();
-          }
-          break;
-    
-        default:
-          break;
-      }
-//      Serial.print("riseA - riseB");
-      int delta_t = abs(riseA - riseB);
-//      Serial.print((riseA - riseB));
-//      Serial.println();
-//      if (((riseB - riseA) < 100) && ((riseB - riseA) > 0)) {
-      if ((delta_t < 100) && (delta_t > 0)) {
-        Serial.print("TOUCH");
-//        Mouse.click(MOUSE_LEFT);
-        riseA = 0;
-        riseB = 0;
-        // clear buffer
-        state_queue.enqueue(0);
-        state_queue.dequeue();
-      } else if (QueueEqual(&state_queue, &up_queue)) {
-         Serial.print("UP");
-//         Keyboard.write(KEY_UP_ARROW);
-         state_queue.enqueue(0);
-         state_queue.dequeue();
-      } else if (QueueEqual(&state_queue, &down_queue)) {
-         Serial.print("DOWN");
-//         Keyboard.write(KEY_DOWN_ARROW);
-         state_queue.enqueue(0);
-         state_queue.dequeue();
       }
 
-      // update prev_touch
-      prev_touchA = touchA;
-  
-      // update prev_touch
-      prev_touchB = touchB;
+      // refresh mins and maxes every 5 seconds
+      unsigned long curr_t = millis();
+      if ((curr_t - last_t) > 10000) {
+        last_t = curr_t;
+        maxA = (maxA + temp_maxA)/2.0;
+        minA = (minA + temp_minA)/2.0;
+        maxB = (maxB + temp_maxB)/2.0;
+        minB = (minB + temp_minB)/2.0;
+        
+        temp_minA = (float) INT_MAX;
+        temp_maxA = (float) 0.0;
+        temp_minB = (float) INT_MAX;
+        temp_maxB = (float) 0.0;
+      }
+
+      prev_pos_vert = pos_vert;
+
     }
+    
   }
 
-//  Serial.println();
+  // Serial.println();
 }
 
 // **********  Read/Write 16 bit value from an FDC1004 register *******************
@@ -419,4 +353,28 @@ bool QueueEqual(QueueArray <int>* A, QueueArray <int>* B) {
   }
   return true;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
