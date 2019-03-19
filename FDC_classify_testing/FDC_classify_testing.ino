@@ -196,6 +196,11 @@ void read_meas(bool toggle) {
       Serial.print(capB);
       Serial.print(" ");
 
+      Serial.print("capC");
+      Serial.print(" ");
+      Serial.print(capC);
+      Serial.print(" ");
+
       pos_vert = (normA - normB + 1.0)/2.0;
       Serial.print("pos_vert");
       Serial.print(" ");
