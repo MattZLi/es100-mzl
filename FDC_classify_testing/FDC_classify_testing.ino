@@ -67,14 +67,16 @@ float normC = (float) 0.0;
 float pos_vert = (float) 0.0;
 float prev_pos_vert = (float) 0.0;
 
+// float pos_horz = (float) 0.0;
+// float prev_pos_horz = (float) 0.0;
 
 float mag = (float) 0.0;
 float mag_threshold = (float) 11.0;
 float filt_mag = (float) 0.0;
 float abs_mag = (float) 0.0;
 
-float derivative_sum = (float) 0.0;
-float integral = (float) 0.0;
+float deriv_sum_vert = (float) 0.0;
+float integral_vert = (float) 0.0;
 
 float capA = (float) 0.0;
 float capB = (float) 0.0;
@@ -263,12 +265,12 @@ void read_meas(bool toggle) {
 
       Serial.print("deriv");
       Serial.print(" ");
-      Serial.print((float) derivative_sum);
+      Serial.print((float) deriv_sum_vert);
       Serial.print(" ");
 
       Serial.print("integ");
       Serial.print(" ");
-      Serial.print((float) integral);
+      Serial.print((float) integral_vert);
       Serial.print(" ");
 
       Serial.println();
@@ -276,30 +278,30 @@ void read_meas(bool toggle) {
 
 
       if ((filt_mag/(float) queue_length) > mag_threshold) {
-        derivative_sum += mag*(pos_vert - prev_pos_vert);
-        integral += derivative_sum;
+        deriv_sum_vert += mag*(pos_vert - prev_pos_vert);
+        integral_vert += deriv_sum_vert;
       } else {
-        if (integral < -0.2) {
+        if (integral_vert < -0.2) {
           Serial.print("DOWN");
           
           Keyboard.write('d');
-          Keyboard.println(integral);
-          derivative_sum = (float) 0;
-          integral = (float) 0;
+          Keyboard.println(integral_vert);
+          deriv_sum_vert = (float) 0;
+          integral_vert = (float) 0;
 
-        } else if (integral > 0.2) {
+        } else if (integral_vert > 0.2) {
           Serial.print("UP");
           Keyboard.write('u');
-          Keyboard.println(integral);
-          derivative_sum = (float) 0;
-          integral = (float) 0;
+          Keyboard.println(integral_vert);
+          deriv_sum_vert = (float) 0;
+          integral_vert = (float) 0;
 
-        } else if (integral != 0) {
+        } else if (integral_vert != 0) {
           Serial.print("TOUCH");
           Keyboard.write('t');
-          Keyboard.println(integral);
-          derivative_sum = (float) 0;
-          integral = (float) 0;
+          Keyboard.println(integral_vert);
+          deriv_sum_vert = (float) 0;
+          integral_vert = (float) 0;
         }
         
       }
