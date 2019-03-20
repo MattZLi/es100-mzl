@@ -41,7 +41,12 @@ int queue_length = 5;
 
 QueueArray <float> mag_queue;
 
-// min and max
+// raw capacitance values
+float capA = (float) 0.0;
+float capB = (float) 0.0;
+float capC = (float) 0.0;
+
+// min and max, used to normalize caps
 float minA = (float) INT_MAX;
 float maxA = (float) 0.0;
 float minB = (float) INT_MAX;
@@ -49,8 +54,10 @@ float maxB = (float) 0.0;
 float minC = (float) INT_MAX;
 float maxC = (float) 0.0;
 
+// timer to track when to refresh min/max
 unsigned long last_t = 0;
 
+// buffer for previous min/mix
 float temp_minA = (float) INT_MAX;
 float temp_maxA = (float) 0.0;
 float temp_minB = (float) INT_MAX;
@@ -59,16 +66,13 @@ float temp_minC = (float) INT_MAX;
 float temp_maxC = (float) 0.0;
 
 
+// vertical position tracking
 // normalized
 float normA = (float) 0.0;
 float normB = (float) 0.0;
-float normC = (float) 0.0;
 
 float pos_vert = (float) 0.0;
 float prev_pos_vert = (float) 0.0;
-
-// float pos_horz = (float) 0.0;
-// float prev_pos_horz = (float) 0.0;
 
 float mag = (float) 0.0;
 float mag_threshold = (float) 11.0;
@@ -78,10 +82,12 @@ float abs_mag = (float) 0.0;
 float deriv_sum_vert = (float) 0.0;
 float integral_vert = (float) 0.0;
 
-float capA = (float) 0.0;
-float capB = (float) 0.0;
-float capC = (float) 0.0;
+// horizontal position tracking
+float normAB = (float) 0.0;
+float normC = (float) 0.0;
 
+float pos_horz = (float) 0.0;
+float prev_pos_horz = (float) 0.0;
 
 // ****************************************************************************************
 // Initialize FDC1004 device
