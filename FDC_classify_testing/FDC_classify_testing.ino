@@ -221,49 +221,40 @@ void read_meas(bool toggle) {
           break;
       }
 
-      // Serial.print("capA");
-      // Serial.print(" ");
-      // Serial.print(capA);
-      // // Serial.print((float) capA);
-      // Serial.print(" ");
+      // // calculate vertical position
+      // pos_vert = (normA - normB + 1.0)/2.0;
+      // // Serial.print("pos_vert");
+      // // Serial.print(" ");
+      // // Serial.print(pos_vert);
+      // // Serial.print(" ");
 
-      // Serial.print("capB");
-      // Serial.print(" ");
-      // Serial.print(capB);
-      // // Serial.print((float) capB);
-      // Serial.print(" ");
+      // // low-pass filter absolute magnitude of vertical sensors
+      // abs_mag_vert = capA + capB;
+      // filt_mag_vert = filt_mag_vert - mag_vert_queue.dequeue() + abs_mag_vert;
+      // mag_vert_queue.enqueue(abs_mag_vert);
+      // // Serial.print("filt_mag_vert");
+      // // Serial.print(" ");
+      // // Serial.print(filt_mag_vert/(float) queue_length);
+      // // Serial.print(" ");
 
-      // Serial.print("capC");
-      // Serial.print(" ");
-      // Serial.print(capC);
-      // // Serial.print((float) capC);
-      // Serial.print(" ");
-
-      // calculate vertical position
-      pos_vert = (normA - normB + 1.0)/2.0;
-      // Serial.print("pos_vert");
-      // Serial.print(" ");
-      // Serial.print(pos_vert);
-      // Serial.print(" ");
-
-      // low-pass filter absolute magnitude of vertical sensors
-      abs_mag_vert = capA + capB;
-      filt_mag_vert = filt_mag_vert - mag_vert_queue.dequeue() + abs_mag_vert;
-      mag_vert_queue.enqueue(abs_mag_vert);
-      // Serial.print("filt_mag_vert");
-      // Serial.print(" ");
-      // Serial.print(filt_mag_vert/(float) queue_length);
-      // Serial.print(" ");
-
-      // normalized magnitude of vertical sensors
-      mag_vert = (normA + normB)/2.0;
-      // Serial.print("mag_vert");
-      // Serial.print(" ");
-      // Serial.print(mag_vert - 2.0); // shift the graph down
-      // Serial.print(" ");
+      // // normalized magnitude of vertical sensors
+      // mag_vert = (normA + normB)/2.0;
+      // // Serial.print("mag_vert");
+      // // Serial.print(" ");
+      // // Serial.print(mag_vert - 2.0); // shift the graph down
+      // // Serial.print(" ");
 
       // combine sensors A and B into a "single" sensor
       normAB = (normA + normB)/2.0;
+      Serial.print("normAB");
+      Serial.print(" ");
+      Serial.print(normAB);
+      Serial.print(" ");
+
+      Serial.print("normC");
+      Serial.print(" ");
+      Serial.print(normC);
+      Serial.print(" ");
 
       // calculate horizontal position
       pos_horz = (normC - normAB + 1.0)/2.0;
@@ -272,62 +263,62 @@ void read_meas(bool toggle) {
       Serial.print(pos_horz);
       Serial.print(" ");
 
-      // low-pass filter absolute magnitude of horizontal sensors
-      abs_mag_horz = capA + capB + capC;
+      // // low-pass filter absolute magnitude of horizontal sensors
+      // abs_mag_horz = capA + capB + capC;
 
       
 
-      filt_mag_horz = filt_mag_horz - mag_horz_queue.dequeue() + abs_mag_horz;
-      mag_horz_queue.enqueue(abs_mag_horz);
-      Serial.print("filt_mag_horz");
-      Serial.print(" ");
-      Serial.print(filt_mag_horz/(float) queue_length);
-      Serial.print(" ");
+      // filt_mag_horz = filt_mag_horz - mag_horz_queue.dequeue() + abs_mag_horz;
+      // mag_horz_queue.enqueue(abs_mag_horz);
+      // Serial.print("filt_mag_horz");
+      // Serial.print(" ");
+      // Serial.print(filt_mag_horz/(float) queue_length);
+      // Serial.print(" ");
 
-      Serial.print("abs_mag_vert");
-      Serial.print(" ");
-      Serial.print(abs_mag_vert);
-      Serial.print(" ");
+      // Serial.print("abs_mag_vert");
+      // Serial.print(" ");
+      // Serial.print(abs_mag_vert);
+      // Serial.print(" ");
 
-      Serial.print("deriv");
-      Serial.print(" ");
-      Serial.print(deriv_sum_vert);
-      // Serial.print((float) deriv_sum_vert);
-      Serial.print(" ");
+      // Serial.print("deriv");
+      // Serial.print(" ");
+      // Serial.print(deriv_sum_vert);
+      // // Serial.print((float) deriv_sum_vert);
+      // Serial.print(" ");
 
-      Serial.print("integ");
-      Serial.print(" ");
-      Serial.print(integral_vert);
-      // Serial.print((float) integral_vert);
-      Serial.print(" ");
+      // Serial.print("integ");
+      // Serial.print(" ");
+      // Serial.print(integral_vert);
+      // // Serial.print((float) integral_vert);
+      // Serial.print(" ");
 
       Serial.println();
 
       // classify direction of gesture
-      if ((filt_mag_vert/(float) queue_length) > mag_vert_threshold) {
-        deriv_sum_vert += mag_vert*(pos_vert - prev_pos_vert);
-        integral_vert += deriv_sum_vert;
-      } else {
-        if (integral_vert < -0.2) {
-          Keyboard.write('d');
-          Keyboard.println(integral_vert);
-          deriv_sum_vert = (float) 0;
-          integral_vert = (float) 0;
+      // if ((filt_mag_vert/(float) queue_length) > mag_vert_threshold) {
+      //   deriv_sum_vert += mag_vert*(pos_vert - prev_pos_vert);
+      //   integral_vert += deriv_sum_vert;
+      // } else {
+      //   if (integral_vert < -0.2) {
+      //     Keyboard.write('d');
+      //     Keyboard.println(integral_vert);
+      //     deriv_sum_vert = (float) 0;
+      //     integral_vert = (float) 0;
 
-        } else if (integral_vert > 0.2) {
-          Keyboard.write('u');
-          Keyboard.println(integral_vert);
-          deriv_sum_vert = (float) 0;
-          integral_vert = (float) 0;
+      //   } else if (integral_vert > 0.2) {
+      //     Keyboard.write('u');
+      //     Keyboard.println(integral_vert);
+      //     deriv_sum_vert = (float) 0;
+      //     integral_vert = (float) 0;
 
-        } else if (integral_vert != 0) {
-          Keyboard.write('t');
-          Keyboard.println(integral_vert);
-          deriv_sum_vert = (float) 0;
-          integral_vert = (float) 0;
-        }
+      //   } else if (integral_vert != 0) {
+      //     Keyboard.write('t');
+      //     Keyboard.println(integral_vert);
+      //     deriv_sum_vert = (float) 0;
+      //     integral_vert = (float) 0;
+      //   }
         
-      }
+      // }
 
       // refresh mins and maxes every 5 seconds
       unsigned long curr_t = millis();
@@ -348,7 +339,7 @@ void read_meas(bool toggle) {
         temp_maxC = (float) 0.0;
       }
 
-      prev_pos_vert = pos_vert;
+      // prev_pos_vert = pos_vert;
       prev_pos_horz = pos_horz;
 
     }
