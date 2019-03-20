@@ -207,19 +207,22 @@ void read_meas(bool toggle) {
           break;
       }
 
-      Serial.print("capA");
-      Serial.print(" ");
-      Serial.print(capA);
-      Serial.print(" ");
+      // Serial.print("capA");
+      // Serial.print(" ");
+      // Serial.print(capA);
+      // // Serial.print((float) capA);
+      // Serial.print(" ");
 
-      Serial.print("capB");
-      Serial.print(" ");
-      Serial.print(capB);
-      Serial.print(" ");
+      // Serial.print("capB");
+      // Serial.print(" ");
+      // Serial.print(capB);
+      // // Serial.print((float) capB);
+      // Serial.print(" ");
 
       // Serial.print("capC");
       // Serial.print(" ");
-      // Serial.print((float) capC);
+      // Serial.print(capC);
+      // // Serial.print((float) capC);
       // Serial.print(" ");
 
       pos_vert = (normA - normB + 1.0)/2.0;
@@ -247,30 +250,32 @@ void read_meas(bool toggle) {
       // Serial.print(abs_mag);
       // Serial.print(" ");
 
-      Serial.print("center");
-      Serial.print(" ");
-      Serial.print(0.5);
-      Serial.print(" ");
+      // Serial.print("center");
+      // Serial.print(" ");
+      // Serial.print(0.5);
+      // Serial.print(" ");
 
-      Serial.print("top");
-      Serial.print(" ");
-      Serial.print(1.0);
-      Serial.print(" ");
+      // Serial.print("top");
+      // Serial.print(" ");
+      // Serial.print(1.0);
+      // Serial.print(" ");
 
-      Serial.print("bot");
-      Serial.print(" ");
-      Serial.print(0.0);
-      Serial.print(" ");
+      // Serial.print("bot");
+      // Serial.print(" ");
+      // Serial.print(0.0);
+      // Serial.print(" ");
 
 
       Serial.print("deriv");
       Serial.print(" ");
-      Serial.print((float) deriv_sum_vert);
+      Serial.print(deriv_sum_vert);
+      // Serial.print((float) deriv_sum_vert);
       Serial.print(" ");
 
       Serial.print("integ");
       Serial.print(" ");
-      Serial.print((float) integral_vert);
+      Serial.print(integral_vert);
+      // Serial.print((float) integral_vert);
       Serial.print(" ");
 
       Serial.println();
