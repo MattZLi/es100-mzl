@@ -39,7 +39,8 @@ float   gain         = (15.0) / (8388608.0);  // Nominal Gain in units of (pf / 
 // define length of queue
 int queue_length = 5;
 
-QueueArray <float> mag_queue;
+QueueArray <float> mag_vert_queue;
+QueueArray <float> mag_horz_queue;
 
 // raw capacitance values
 float capA = (float) 0.0;
@@ -74,10 +75,10 @@ float normB = (float) 0.0;
 float pos_vert = (float) 0.0;
 float prev_pos_vert = (float) 0.0;
 
-float mag = (float) 0.0;
-float mag_threshold = (float) 11.0;
-float filt_mag = (float) 0.0;
-float abs_mag = (float) 0.0;
+float mag_vert = (float) 0.0;
+float mag_vert_threshold = (float) 11.0;
+float filt_mag_vert = (float) 0.0;
+float abs_mag_vert = (float) 0.0;
 
 float deriv_sum_vert = (float) 0.0;
 float integral_vert = (float) 0.0;
@@ -88,6 +89,14 @@ float normC = (float) 0.0;
 
 float pos_horz = (float) 0.0;
 float prev_pos_horz = (float) 0.0;
+
+float mag_horz = (float) 0.0;
+float mag_horz_threshold = (float) 11.0;
+float filt_mag_horz = (float) 0.0;
+float abs_mag_horz = (float) 0.0;
+
+float deriv_sum_horz = (float) 0.0;
+float integral_horz = (float) 0.0;
 
 // ****************************************************************************************
 // Initialize FDC1004 device
@@ -114,7 +123,8 @@ void setup() {
   
   // enqueue each queue full of 0s
   for (int i = 0; i < queue_length; i++){
-    mag_queue.enqueue(0);
+    mag_vert_queue.enqueue(0);
+    mag_horz_queue.enqueue(0);
   }
 }
 
@@ -162,14 +172,13 @@ void read_meas(bool toggle) {
           // records min and max value over refresh period
           temp_minA = min(temp_minA, capA);
           temp_maxA = max(temp_maxA, capA);
-
+          // normalize cap value between 0 and 1
           if (maxA == minA) {
             normA = 0;
-            Serial.print("maxA == minA");
+            // Serial.print("maxA == minA");
           } else {
             normA = (capA - minA)/(maxA - minA);
           }
-          
           
           break;
         case 1:
@@ -181,7 +190,7 @@ void read_meas(bool toggle) {
           temp_maxB = max(temp_maxB, capB);
 
           if (maxB == minB) {
-            Serial.print("maxB == minB");
+            // Serial.print("maxB == minB");
             normB = 0;
           } else {
             normB = (capB - minB)/(maxB - minB);
@@ -197,9 +206,8 @@ void read_meas(bool toggle) {
           temp_minC = min(temp_minC, capC);
           temp_maxC = max(temp_maxC, capC);
 
-          
           if (maxC == minC) {
-            Serial.print("maxC == minC");
+            // Serial.print("maxC == minC");
             normC = 0;
           } else {
             normC = (capC - minC)/(maxC - minC);
@@ -231,46 +239,55 @@ void read_meas(bool toggle) {
       // // Serial.print((float) capC);
       // Serial.print(" ");
 
+      // calculate vertical position
       pos_vert = (normA - normB + 1.0)/2.0;
-      Serial.print("pos_vert");
+      // Serial.print("pos_vert");
+      // Serial.print(" ");
+      // Serial.print(pos_vert);
+      // Serial.print(" ");
+
+      // low-pass filter absolute magnitude of vertical sensors
+      abs_mag_vert = capA + capB;
+      filt_mag_vert = filt_mag_vert - mag_vert_queue.dequeue() + abs_mag_vert;
+      mag_vert_queue.enqueue(abs_mag_vert);
+      // Serial.print("filt_mag_vert");
+      // Serial.print(" ");
+      // Serial.print(filt_mag_vert/(float) queue_length);
+      // Serial.print(" ");
+
+      // normalized magnitude of vertical sensors
+      mag_vert = (normA + normB)/2.0;
+      // Serial.print("mag_vert");
+      // Serial.print(" ");
+      // Serial.print(mag_vert - 2.0); // shift the graph down
+      // Serial.print(" ");
+
+      // combine sensors A and B into a "single" sensor
+      normAB = (normA + normB)/2.0;
+
+      // calculate horizontal position
+      pos_horz = (normC - normAB + 1.0)/2.0;
+      Serial.print("pos_horz");
       Serial.print(" ");
-      Serial.print(pos_vert);
+      Serial.print(pos_horz);
       Serial.print(" ");
 
-      abs_mag = capA + capB;
-      filt_mag = filt_mag - mag_queue.dequeue() + abs_mag;
-      mag_queue.enqueue(abs_mag);
-      Serial.print("filt_mag");
-      Serial.print(" ");
-      Serial.print(filt_mag/(float) queue_length);
-      Serial.print(" ");
+      // low-pass filter absolute magnitude of horizontal sensors
+      abs_mag_horz = capA + capB + capC;
 
-      mag = (normA + normB)/2.0;
-      Serial.print("mag");
+      
+
+      filt_mag_horz = filt_mag_horz - mag_horz_queue.dequeue() + abs_mag_horz;
+      mag_horz_queue.enqueue(abs_mag_horz);
+      Serial.print("filt_mag_horz");
       Serial.print(" ");
-      Serial.print(mag - 2.0); // shift the graph down
+      Serial.print(filt_mag_horz/(float) queue_length);
       Serial.print(" ");
 
-      // Serial.print("abs_mag");
-      // Serial.print(" ");
-      // Serial.print(abs_mag);
-      // Serial.print(" ");
-
-      // Serial.print("center");
-      // Serial.print(" ");
-      // Serial.print(0.5);
-      // Serial.print(" ");
-
-      // Serial.print("top");
-      // Serial.print(" ");
-      // Serial.print(1.0);
-      // Serial.print(" ");
-
-      // Serial.print("bot");
-      // Serial.print(" ");
-      // Serial.print(0.0);
-      // Serial.print(" ");
-
+      Serial.print("abs_mag_vert");
+      Serial.print(" ");
+      Serial.print(abs_mag_vert);
+      Serial.print(" ");
 
       Serial.print("deriv");
       Serial.print(" ");
@@ -286,29 +303,24 @@ void read_meas(bool toggle) {
 
       Serial.println();
 
-
-
-      if ((filt_mag/(float) queue_length) > mag_threshold) {
-        deriv_sum_vert += mag*(pos_vert - prev_pos_vert);
+      // classify direction of gesture
+      if ((filt_mag_vert/(float) queue_length) > mag_vert_threshold) {
+        deriv_sum_vert += mag_vert*(pos_vert - prev_pos_vert);
         integral_vert += deriv_sum_vert;
       } else {
         if (integral_vert < -0.2) {
-          Serial.print("DOWN");
-          
           Keyboard.write('d');
           Keyboard.println(integral_vert);
           deriv_sum_vert = (float) 0;
           integral_vert = (float) 0;
 
         } else if (integral_vert > 0.2) {
-          Serial.print("UP");
           Keyboard.write('u');
           Keyboard.println(integral_vert);
           deriv_sum_vert = (float) 0;
           integral_vert = (float) 0;
 
         } else if (integral_vert != 0) {
-          Serial.print("TOUCH");
           Keyboard.write('t');
           Keyboard.println(integral_vert);
           deriv_sum_vert = (float) 0;
@@ -337,12 +349,12 @@ void read_meas(bool toggle) {
       }
 
       prev_pos_vert = pos_vert;
+      prev_pos_horz = pos_horz;
 
     }
     
   }
 
-  // Serial.println();
 }
 
 // **********  Read/Write 16 bit value from an FDC1004 register *******************
