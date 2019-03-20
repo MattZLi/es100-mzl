@@ -132,7 +132,6 @@ void read_meas(bool toggle) {
   float    cap = 0;    // floating point value of measured capacitance (in pf)
 
   int j = 0;
-  // for (int i = 0; i <= 1; i++) {
   for (int i = 0; i <= 3; i++) {
     lsb = read16(FDC_RD_M[j++]);     // MEASj LSB
     msb = read16(FDC_RD_M[j++]);     // MEASj MSB
@@ -149,12 +148,20 @@ void read_meas(bool toggle) {
 
           capA = cap;
 
+          // dynamically sets min and max
           minA = min(minA, capA);
           maxA = max(maxA, capA);
+          // records min and max value over refresh period
           temp_minA = min(temp_minA, capA);
           temp_maxA = max(temp_maxA, capA);
 
-          normA = (capA - minA)/(maxA - minA);
+          if (maxA == minA) {
+            normA = 0;
+            Serial.print("maxA == minA");
+          } else {
+            normA = (capA - minA)/(maxA - minA);
+          }
+          
           
           break;
         case 1:
@@ -165,7 +172,13 @@ void read_meas(bool toggle) {
           temp_minB = min(temp_minB, capB);
           temp_maxB = max(temp_maxB, capB);
 
-          normB = (capB - minB)/(maxB - minB);
+          if (maxB == minB) {
+            Serial.print("maxB == minB");
+            normB = 0;
+          } else {
+            normB = (capB - minB)/(maxB - minB);
+          }
+          
           
           break;
         case 2:
@@ -176,7 +189,13 @@ void read_meas(bool toggle) {
           temp_minC = min(temp_minC, capC);
           temp_maxC = max(temp_maxC, capC);
 
-          normC = (capC - minC)/(maxC - minC);
+          
+          if (maxC == minC) {
+            Serial.print("maxC == minC");
+            normC = 0;
+          } else {
+            normC = (capC - minC)/(maxC - minC);
+          }
 
           break;
         case 3:
@@ -196,10 +215,10 @@ void read_meas(bool toggle) {
       Serial.print(capB);
       Serial.print(" ");
 
-      Serial.print("capC");
-      Serial.print(" ");
-      Serial.print(capC);
-      Serial.print(" ");
+      // Serial.print("capC");
+      // Serial.print(" ");
+      // Serial.print((float) capC);
+      // Serial.print(" ");
 
       pos_vert = (normA - normB + 1.0)/2.0;
       Serial.print("pos_vert");
@@ -289,15 +308,19 @@ void read_meas(bool toggle) {
       unsigned long curr_t = millis();
       if ((curr_t - last_t) > 10000) {
         last_t = curr_t;
-        maxA = (maxA + temp_maxA)/2.0;
         minA = (minA + temp_minA)/2.0;
-        maxB = (maxB + temp_maxB)/2.0;
+        maxA = (maxA + temp_maxA)/2.0;
         minB = (minB + temp_minB)/2.0;
+        maxB = (maxB + temp_maxB)/2.0;
+        minC = (minC + temp_minC)/2.0;
+        maxC = (maxC + temp_maxC)/2.0;
         
         temp_minA = (float) INT_MAX;
         temp_maxA = (float) 0.0;
         temp_minB = (float) INT_MAX;
         temp_maxB = (float) 0.0;
+        temp_minC = (float) INT_MAX;
+        temp_maxC = (float) 0.0;
       }
 
       prev_pos_vert = pos_vert;
