@@ -243,7 +243,7 @@ void read_meas(bool toggle) {
       // calculate 2-dimensional position
       // A (-1, 1); B (-1, -1); C (1, 1); D(1, -1)
       pos_horz = (normC + normD - normA - normB)/2.0;
-      pos_vert = (normA + normC - normB - normD)/2.0;
+      pos_vert = (normA - normB + normC - normD)/2.0;
 
       // low-pass filter absolute magnitude of vertical sensors
       abs_mag = capA + capB + capC + capD;
@@ -285,14 +285,14 @@ void read_meas(bool toggle) {
         integral_horz += deriv_sum_horz;
       } else {
         if (abs(integral_vert) > abs(integral_horz)) { // vertical
-          if (integral_vert < -0.2) {
+          if (integral_vert < -0.3) {
             Keyboard.write('D');
             // Keyboard.println(integral_vert);
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
             integral_horz = (float) 0;
-          } else if (integral_vert > 0.2) {
+          } else if (integral_vert > 0.3) {
             Keyboard.write('U');
             // Keyboard.println(integral_vert);
             deriv_sum_vert = (float) 0;
@@ -306,13 +306,13 @@ void read_meas(bool toggle) {
             integral_vert = (float) 0;
           }
         } else if (abs(integral_vert) < abs(integral_horz)) { // horizontal
-          if (integral_horz < -0.2) {
+          if (integral_horz < -0.3) {
             Keyboard.write('L');
             // Keyboard.println(integral_horz);
             deriv_sum_horz = (float) 0;
             integral_horz = (float) 0;
 
-          } else if (integral_horz > 0.2) {
+          } else if (integral_horz > 0.3) {
             Keyboard.write('R');
             // Keyboard.println(integral_horz);
             deriv_sum_horz = (float) 0;
