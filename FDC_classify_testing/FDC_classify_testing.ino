@@ -49,7 +49,7 @@ float capD = (float) 0.0;
 
 // magnitude and threshold
 float mag = (float) 0.0;
-float mag_threshold = (float) 17.0;
+float mag_threshold = 20.0;
 
 float filt_mag = (float) 0.0;
 float abs_mag = (float) 0.0;
@@ -107,6 +107,12 @@ float mag_horz = (float) 0.0;
 
 float deriv_sum_horz = (float) 0.0;
 float integral_horz = (float) 0.0;
+
+// thresholds for directions
+float down_thresh = -0.6;
+float up_thresh = 0.6;
+float left_thresh = -0.6;
+float right_thresh = 0.6; 
 
 // ****************************************************************************************
 // Initialize FDC1004 device
@@ -247,12 +253,6 @@ void read_meas(bool toggle) {
 
       // low-pass filter absolute magnitude of vertical sensors
       abs_mag = capA + capB + capC + capD;
-      // Serial.print("abs_mag");
-      // Serial.print(" ");
-      // Serial.print(abs_mag);
-      // Serial.print(" ");
-
-      // mag = (normA + normB + normC + normD)/4.0;
 
       filt_mag = filt_mag - mag_queue.dequeue() + abs_mag;
       mag_queue.enqueue(abs_mag);
@@ -289,14 +289,14 @@ void read_meas(bool toggle) {
         integral_horz += deriv_sum_horz;
       } else {
         if (abs(integral_vert) > abs(integral_horz)) { // vertical
-          if (integral_vert < -0.4) {
+          if (integral_vert < down_thresh) {
             Keyboard.write('D');
             // Keyboard.println(integral_vert);
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
             integral_horz = (float) 0;
-          } else if (integral_vert > 0.4) {
+          } else if (integral_vert > up_thresh) {
             Keyboard.write('U');
             // Keyboard.println(integral_vert);
             deriv_sum_vert = (float) 0;
@@ -310,21 +310,27 @@ void read_meas(bool toggle) {
             integral_vert = (float) 0;
           }
         } else if (abs(integral_vert) < abs(integral_horz)) { // horizontal
-          if (integral_horz < -0.4) {
+          if (integral_horz < left_thresh) {
             Keyboard.write('L');
             // Keyboard.println(integral_horz);
+            deriv_sum_vert = (float) 0;
+            integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
             integral_horz = (float) 0;
 
-          } else if (integral_horz > 0.4) {
+          } else if (integral_horz > right_thresh) {
             Keyboard.write('R');
             // Keyboard.println(integral_horz);
+            deriv_sum_vert = (float) 0;
+            integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
             integral_horz = (float) 0;
 
           } else if (integral_horz != 0) {
             Keyboard.write('T');
             // Keyboard.println(integral_horz);
+            deriv_sum_vert = (float) 0;
+            integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
             integral_horz = (float) 0;
           }
