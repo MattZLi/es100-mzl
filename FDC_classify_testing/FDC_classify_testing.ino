@@ -289,20 +289,20 @@ void read_meas(bool toggle) {
 
       // combine sensors A and B into a "single" sensor
       normAB = (normA + normB)/2.0;
-      Serial.print("normAB");
-      Serial.print(" ");
+      // Serial.print("normAB");
+      // Serial.print(" ");
       Serial.print(normAB);
       Serial.print(" ");
 
-      Serial.print("normC");
-      Serial.print(" ");
+      // Serial.print("normC");
+      // Serial.print(" ");
       Serial.print(normC);
       Serial.print(" ");
 
       // calculate horizontal position
       pos_horz = (normC - normAB + 1.0)/2.0;
-      Serial.print("pos_horz");
-      Serial.print(" ");
+      // Serial.print("pos_horz");
+      // Serial.print(" ");
       Serial.print(pos_horz);
       Serial.print(" ");
 
@@ -311,8 +311,8 @@ void read_meas(bool toggle) {
 
       // Serial.print("abs_mag_horz");
       // Serial.print(" ");
-      // Serial.print(abs_mag_horz);
-      // Serial.print(" ");
+      Serial.print(abs_mag_horz);
+      Serial.print(" ");
 
       filt_mag_horz = filt_mag_horz - mag_horz_queue.dequeue() + abs_mag_horz;
       mag_horz_queue.enqueue(abs_mag_horz);
@@ -326,7 +326,7 @@ void read_meas(bool toggle) {
       mag_horz = (normAB + normC)/2.0;
       // Serial.print("mag_horz");
       // Serial.print(" ");
-      Serial.print(mag_horz - 2.0); // shift the graph down
+      Serial.print(mag_horz); // shift the graph down
       Serial.print(" ");
 
       // classify direction of horizontal gesture
@@ -354,6 +354,9 @@ void read_meas(bool toggle) {
         }
         
       }
+
+      Serial.print((pos_horz - prev_pos_horz));
+      Serial.print(" ");
 
       // Serial.print("deriv");
       // Serial.print(" ");
