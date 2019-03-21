@@ -91,7 +91,8 @@ float pos_horz = (float) 0.0;
 float prev_pos_horz = (float) 0.0;
 
 float mag_horz = (float) 0.0;
-float mag_horz_threshold = (float) 16.0;
+// float mag_horz_threshold = (float) 16.0;
+float mag_horz_threshold = mag_vert_threshold;
 float filt_mag_horz = (float) 0.0;
 float abs_mag_horz = (float) 0.0;
 
@@ -288,7 +289,8 @@ void read_meas(bool toggle) {
       // Serial.print(" ");
 
       // combine sensors A and B into a "single" sensor
-      normAB = (normA + normB)/2.0;
+      // normAB = (normA + normB)/2.0;
+      normAB = max(normA, normB);
       // Serial.print("normAB");
       // Serial.print(" ");
       Serial.print(normAB);
@@ -330,7 +332,7 @@ void read_meas(bool toggle) {
       Serial.print(" ");
 
       // classify direction of horizontal gesture
-      if ((filt_mag_horz/(float) queue_length) > mag_horz_threshold) {
+      if ((filt_mag_horz/(fRttLRRRRLRRLLtRtRRLRloat) queue_length) > mag_horz_threshold) {
         deriv_sum_horz += mag_horz*(pos_horz - prev_pos_horz);
         integral_horz += deriv_sum_horz;
       } else {
