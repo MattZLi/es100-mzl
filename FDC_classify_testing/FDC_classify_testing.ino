@@ -240,25 +240,10 @@ void read_meas(bool toggle) {
           break;
       }
 
-      // calculate vertical position
-      normAC = max(normA, normC);
-      normBD = max(normB, normD);
-
-      pos_vert = (normAC - normBD + 1.0)/2.0;
-      // // Serial.print("pos_vert");
-      // // Serial.print(" ");
-      // Serial.print(pos_vert);
-      // Serial.print(" ");
-
-      // calculate horizontal position
-      normAB = max(normA, normB);
-      normCD = max(normC, normD);
-
-      pos_horz = (normCD - normAB + 1.0)/2.0;
-      // Serial.print("pos_horz");
-      // Serial.print(" ");
-      // Serial.print(pos_horz);
-      // Serial.print(" ");
+      // calculate 2-dimensional position
+      // A (-1, 1); B (-1, -1); C (1, 1); D(1, -1)
+      pos_horz = (normC + normD - normA - normB)/2.0;
+      pos_vert = (normA + normC - normB - normD)/2.0;
 
       // low-pass filter absolute magnitude of vertical sensors
       abs_mag = capA + capB + capC + capD;
@@ -266,6 +251,8 @@ void read_meas(bool toggle) {
       // Serial.print(" ");
       // Serial.print(abs_mag);
       // Serial.print(" ");
+
+      mag = (normA + normB + normC + normD)/4.0;
 
       filt_mag = filt_mag - mag_queue.dequeue() + abs_mag;
       mag_queue.enqueue(abs_mag);
@@ -275,14 +262,14 @@ void read_meas(bool toggle) {
       Serial.print(" ");
 
       // normalized magnitude of vertical sensors
-      mag_vert = (normA + normB)/2.0;
+      // mag_vert = (normAC + normBD)/2.0;
       // Serial.print("mag_vert");
       // Serial.print(" ");
       // Serial.print(mag_vert - 2.0); // shift the graph down
       // Serial.print(" ");
 
       // normalized magnitude of horizontal sensors
-      mag_horz = (normAB + normC)/2.0;
+      // mag_horz = (normAB + normCD)/2.0;
       // Serial.print("mag_horz");
       // Serial.print(" ");
       // Serial.print(mag_horz - 4.0); // shift the graph down
@@ -291,10 +278,10 @@ void read_meas(bool toggle) {
       // classify direction of gesture
       if ((filt_mag/(float) queue_length) > mag_threshold) {
         // vertical component
-        deriv_sum_vert += mag_vert*(pos_vert - prev_pos_vert);
+        deriv_sum_vert += mag*(pos_vert - prev_pos_vert);
         integral_vert += deriv_sum_vert;
         // horizontal component
-        deriv_sum_horz += mag_horz*(pos_horz - prev_pos_horz);
+        deriv_sum_horz += mag*(pos_horz - prev_pos_horz);
         integral_horz += deriv_sum_horz;
       } else {
         if (abs(integral_vert) > abs(integral_horz)) { // vertical
