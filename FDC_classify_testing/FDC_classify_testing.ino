@@ -39,13 +39,20 @@ float   gain         = (15.0) / (8388608.0);  // Nominal Gain in units of (pf / 
 // define length of queue
 int queue_length = 5;
 
-QueueArray <float> mag_vert_queue;
-QueueArray <float> mag_horz_queue;
+QueueArray <float> mag_queue;
 
 // raw capacitance values
 float capA = (float) 0.0;
 float capB = (float) 0.0;
 float capC = (float) 0.0;
+float capD = (float) 0.0;
+
+// magnitude and threshold
+float mag = (float) 0.0;
+float mag_threshold = (float) 17.0;
+
+float filt_mag = (float) 0.0;
+float abs_mag = (float) 0.0;
 
 // min and max, used to normalize caps
 float minA = (float) INT_MAX;
@@ -54,6 +61,8 @@ float minB = (float) INT_MAX;
 float maxB = (float) 0.0;
 float minC = (float) INT_MAX;
 float maxC = (float) 0.0;
+float minD = (float) INT_MAX;
+float maxD = (float) 0.0;
 
 // timer to track when to refresh min/max
 unsigned long last_t = 0;
@@ -65,36 +74,36 @@ float temp_minB = (float) INT_MAX;
 float temp_maxB = (float) 0.0;
 float temp_minC = (float) INT_MAX;
 float temp_maxC = (float) 0.0;
+float temp_minD = (float) INT_MAX;
+float temp_maxD = (float) 0.0;
 
-
-// vertical position tracking
 // normalized
 float normA = (float) 0.0;
 float normB = (float) 0.0;
+float normC = (float) 0.0;
+float normD = (float) 0.0;
+
+// vertical position tracking
+float normAC = (float) 0.0;
+float normBD = (float) 0.0;
 
 float pos_vert = (float) 0.0;
 float prev_pos_vert = (float) 0.0;
 
 float mag_vert = (float) 0.0;
-float mag_vert_threshold = (float) 11.0;
-float filt_mag_vert = (float) 0.0;
-float abs_mag_vert = (float) 0.0;
 
 float deriv_sum_vert = (float) 0.0;
 float integral_vert = (float) 0.0;
 
+
 // horizontal position tracking
 float normAB = (float) 0.0;
-float normC = (float) 0.0;
+float normCD = (float) 0.0;
 
 float pos_horz = (float) 0.0;
 float prev_pos_horz = (float) 0.0;
 
 float mag_horz = (float) 0.0;
-// float mag_horz_threshold = (float) 16.0;
-float mag_horz_threshold = mag_vert_threshold;
-float filt_mag_horz = (float) 0.0;
-float abs_mag_horz = (float) 0.0;
 
 float deriv_sum_horz = (float) 0.0;
 float integral_horz = (float) 0.0;
@@ -124,8 +133,7 @@ void setup() {
   
   // enqueue each queue full of 0s
   for (int i = 0; i < queue_length; i++){
-    mag_vert_queue.enqueue(0);
-    mag_horz_queue.enqueue(0);
+    mag_queue.enqueue(0);
   }
 }
 
@@ -162,11 +170,8 @@ void read_meas(bool toggle) {
       // add measurements to buffer for each MEASx
       switch (i) {
         case 0:
-          // add to array of cap values
-          // if array is full, shift the window like a FIFO queue
-
+          // record capacitance of sensor A
           capA = cap;
-
           // dynamically sets min and max
           minA = min(minA, capA);
           maxA = max(maxA, capA);
@@ -216,65 +221,124 @@ void read_meas(bool toggle) {
 
           break;
         case 3:
+          capD = cap;
+
+          minD = min(minD, capD);
+          maxD = max(maxD, capD);
+          temp_minD = min(temp_minD, capD);
+          temp_maxD = max(temp_maxD, capD);
+
+          if (maxD == minD) {
+            // Serial.print("maxD == minD");
+            normD = 0;
+          } else {
+            normD = (capD - minD)/(maxD - minD);
+          }
 
           break;
         default:
           break;
       }
 
-      // // calculate vertical position
-      // pos_vert = (normA - normB + 1.0)/2.0;
+      // calculate vertical position
+      normAC = max(normA, normC);
+      normBD = max(normB, normD);
+
+      pos_vert = (normAC - normBD + 1.0)/2.0;
       // // Serial.print("pos_vert");
       // // Serial.print(" ");
-      // // Serial.print(pos_vert);
-      // // Serial.print(" ");
-
-      // // low-pass filter absolute magnitude of vertical sensors
-      // abs_mag_vert = capA + capB;
-      // Serial.print("abs_mag_vert");
-      // Serial.print(" ");
-      // Serial.print(abs_mag_vert);
+      // Serial.print(pos_vert);
       // Serial.print(" ");
 
-      // filt_mag_vert = filt_mag_vert - mag_vert_queue.dequeue() + abs_mag_vert;
-      // mag_vert_queue.enqueue(abs_mag_vert);
-      // // Serial.print("filt_mag_vert");
-      // // Serial.print(" ");
-      // // Serial.print(filt_mag_vert/(float) queue_length);
-      // // Serial.print(" ");
+      // calculate horizontal position
+      normAB = max(normA, normB);
+      normCD = max(normC, normD);
 
-      // // normalized magnitude of vertical sensors
-      // mag_vert = (normA + normB)/2.0;
-      // // Serial.print("mag_vert");
-      // // Serial.print(" ");
-      // // Serial.print(mag_vert - 2.0); // shift the graph down
-      // // Serial.print(" ");
+      pos_horz = (normCD - normAB + 1.0)/2.0;
+      // Serial.print("pos_horz");
+      // Serial.print(" ");
+      // Serial.print(pos_horz);
+      // Serial.print(" ");
+
+      // low-pass filter absolute magnitude of vertical sensors
+      abs_mag = capA + capB + capC + capD;
+      // Serial.print("abs_mag");
+      // Serial.print(" ");
+      // Serial.print(abs_mag);
+      // Serial.print(" ");
+
+      filt_mag = filt_mag - mag_queue.dequeue() + abs_mag;
+      mag_queue.enqueue(abs_mag);
+      // Serial.print("filt_mag");
+      // Serial.print(" ");
+      Serial.print(filt_mag/(float) queue_length);
+      Serial.print(" ");
+
+      // normalized magnitude of vertical sensors
+      mag_vert = (normA + normB)/2.0;
+      // Serial.print("mag_vert");
+      // Serial.print(" ");
+      // Serial.print(mag_vert - 2.0); // shift the graph down
+      // Serial.print(" ");
+
+      // normalized magnitude of horizontal sensors
+      mag_horz = (normAB + normC)/2.0;
+      // Serial.print("mag_horz");
+      // Serial.print(" ");
+      // Serial.print(mag_horz - 4.0); // shift the graph down
+      // Serial.print(" ");
 
       // classify direction of gesture
-      // if ((filt_mag_vert/(float) queue_length) > mag_vert_threshold) {
-      //   deriv_sum_vert += mag_vert*(pos_vert - prev_pos_vert);
-      //   integral_vert += deriv_sum_vert;
-      // } else {
-      //   if (integral_vert < -0.2) {
-      //     Keyboard.write('d');
-      //     Keyboard.println(integral_vert);
-      //     deriv_sum_vert = (float) 0;
-      //     integral_vert = (float) 0;
+      if ((filt_mag/(float) queue_length) > mag_threshold) {
+        // vertical component
+        deriv_sum_vert += mag_vert*(pos_vert - prev_pos_vert);
+        integral_vert += deriv_sum_vert;
+        // horizontal component
+        deriv_sum_horz += mag_horz*(pos_horz - prev_pos_horz);
+        integral_horz += deriv_sum_horz;
+      } else {
+        if (abs(integral_vert) > abs(integral_horz)) { // vertical
+          if (integral_vert < -0.2) {
+            Keyboard.write('D');
+            // Keyboard.println(integral_vert);
+            deriv_sum_vert = (float) 0;
+            integral_vert = (float) 0;
+            deriv_sum_horz = (float) 0;
+            integral_horz = (float) 0;
+          } else if (integral_vert > 0.2) {
+            Keyboard.write('U');
+            // Keyboard.println(integral_vert);
+            deriv_sum_vert = (float) 0;
+            integral_vert = (float) 0;
+            deriv_sum_horz = (float) 0;
+            integral_horz = (float) 0;
+          } else if (integral_vert != 0) {
+            Keyboard.write('T');
+            // Keyboard.println(integral_vert);
+            deriv_sum_vert = (float) 0;
+            integral_vert = (float) 0;
+          }
+        } else if (abs(integral_vert) < abs(integral_horz)) { // horizontal
+          if (integral_horz < -0.2) {
+            Keyboard.write('L');
+            // Keyboard.println(integral_horz);
+            deriv_sum_horz = (float) 0;
+            integral_horz = (float) 0;
 
-      //   } else if (integral_vert > 0.2) {
-      //     Keyboard.write('u');
-      //     Keyboard.println(integral_vert);
-      //     deriv_sum_vert = (float) 0;
-      //     integral_vert = (float) 0;
+          } else if (integral_horz > 0.2) {
+            Keyboard.write('R');
+            // Keyboard.println(integral_horz);
+            deriv_sum_horz = (float) 0;
+            integral_horz = (float) 0;
 
-      //   } else if (integral_vert != 0) {
-      //     Keyboard.write('t');
-      //     Keyboard.println(integral_vert);
-      //     deriv_sum_vert = (float) 0;
-      //     integral_vert = (float) 0;
-      //   }
-        
-      // }
+          } else if (integral_horz != 0) {
+            Keyboard.write('T');
+            // Keyboard.println(integral_horz);
+            deriv_sum_horz = (float) 0;
+            integral_horz = (float) 0;
+          }
+        }
+      }
 
       // Serial.print("deriv");
       // Serial.print(" ");
@@ -285,95 +349,22 @@ void read_meas(bool toggle) {
       // Serial.print("integ");
       // Serial.print(" ");
       // Serial.print(integral_vert);
-      // // Serial.print((float) integral_vert);
+      // Serial.print((float) integral_vert);
       // Serial.print(" ");
-
-      // combine sensors A and B into a "single" sensor
-      // normAB = (normA + normB)/2.0;
-      normAB = max(normA, normB);
-      // Serial.print("normAB");
-      // Serial.print(" ");
-      Serial.print(normAB);
-      Serial.print(" ");
-
-      // Serial.print("normC");
-      // Serial.print(" ");
-      Serial.print(normC);
-      Serial.print(" ");
-
-      // calculate horizontal position
-      pos_horz = (normC - normAB + 1.0)/2.0;
-      // Serial.print("pos_horz");
-      // Serial.print(" ");
-      Serial.print(pos_horz);
-      Serial.print(" ");
-
-      // // low-pass filter absolute magnitude of horizontal sensors
-      abs_mag_horz = capA + capB + capC;
-
-      // Serial.print("abs_mag_horz");
-      // Serial.print(" ");
-      Serial.print(abs_mag_horz);
-      Serial.print(" ");
-
-      filt_mag_horz = filt_mag_horz - mag_horz_queue.dequeue() + abs_mag_horz;
-      mag_horz_queue.enqueue(abs_mag_horz);
-
-      // Serial.print("filt_mag_horz");
-      // Serial.print(" ");
-      Serial.print(filt_mag_horz/(float) queue_length);
-      Serial.print(" ");
-
-      // normalized magnitude of horizontal sensors
-      mag_horz = (normAB + normC)/2.0;
-      // Serial.print("mag_horz");
-      // Serial.print(" ");
-      Serial.print(mag_horz); // shift the graph down
-      Serial.print(" ");
-
-      // classify direction of horizontal gesture
-      if ((filt_mag_horz/(fRttLRRRRLRRLLtRtRRLRloat) queue_length) > mag_horz_threshold) {
-        deriv_sum_horz += mag_horz*(pos_horz - prev_pos_horz);
-        integral_horz += deriv_sum_horz;
-      } else {
-        if (integral_horz < -0.2) {
-          Keyboard.write('L');
-          // Keyboard.println(integral_horz);
-          deriv_sum_horz = (float) 0;
-          integral_horz = (float) 0;
-
-        } else if (integral_horz > 0.2) {
-          Keyboard.write('R');
-          // Keyboard.println(integral_horz);
-          deriv_sum_horz = (float) 0;
-          integral_horz = (float) 0;
-
-        } else if (integral_horz != 0) {
-          Keyboard.write('t');
-          // Keyboard.println(integral_horz);
-          deriv_sum_horz = (float) 0;
-          integral_horz = (float) 0;
-        }
-        
-      }
-
-      Serial.print((pos_horz - prev_pos_horz));
-      Serial.print(" ");
 
       // Serial.print("deriv");
       // Serial.print(" ");
-      // Serial.print(deriv_sum_vert);
-      Serial.print((float) deriv_sum_vert);
-      Serial.print(" ");
+      // Serial.print(deriv_sum_horz);
+      // Serial.print((float) deriv_sum_horz);
+      // Serial.print(" ");
 
       // Serial.print("integ");
       // Serial.print(" ");
-      // Serial.print(integral_vert);
-      Serial.print((float) integral_vert);
-      Serial.print(" ");
-      
+      // Serial.print(integral_horz);
+      // Serial.print((float) integral_horz);
+      // Serial.print(" ");
 
-      // refresh mins and maxes every 5 seconds
+      // refresh mins and maxes every 10 seconds
       unsigned long curr_t = millis();
       if ((curr_t - last_t) > 10000) {
         last_t = curr_t;
@@ -383,6 +374,8 @@ void read_meas(bool toggle) {
         maxB = (maxB + temp_maxB)/2.0;
         minC = (minC + temp_minC)/2.0;
         maxC = (maxC + temp_maxC)/2.0;
+        minD = (minD + temp_minD)/2.0;
+        maxD = (maxD + temp_maxD)/2.0;
         
         temp_minA = (float) INT_MAX;
         temp_maxA = (float) 0.0;
@@ -390,16 +383,16 @@ void read_meas(bool toggle) {
         temp_maxB = (float) 0.0;
         temp_minC = (float) INT_MAX;
         temp_maxC = (float) 0.0;
+        temp_minD = (float) INT_MAX;
+        temp_maxD = (float) 0.0;
       }
 
-      // prev_pos_vert = pos_vert;
+      prev_pos_vert = pos_vert;
       prev_pos_horz = pos_horz;
 
       Serial.println();
     }
-    
   }
-
 }
 
 // **********  Read/Write 16 bit value from an FDC1004 register *******************
