@@ -242,7 +242,7 @@ void read_meas(bool toggle) {
 
       // calculate 2-dimensional position
       // A (-1, 1); B (-1, -1); C (1, 1); D(1, -1)
-      pos_horz = (normC + normD - normA - normB)/2.0;
+      pos_horz = (- normA - normB + normC + normD)/2.0;
       pos_vert = (normA - normB + normC - normD)/2.0;
 
       // low-pass filter absolute magnitude of vertical sensors
@@ -252,7 +252,7 @@ void read_meas(bool toggle) {
       // Serial.print(abs_mag);
       // Serial.print(" ");
 
-      mag = (normA + normB + normC + normD)/4.0;
+      // mag = (normA + normB + normC + normD)/4.0;
 
       filt_mag = filt_mag - mag_queue.dequeue() + abs_mag;
       mag_queue.enqueue(abs_mag);
@@ -262,14 +262,18 @@ void read_meas(bool toggle) {
       Serial.print(" ");
 
       // normalized magnitude of vertical sensors
-      // mag_vert = (normAC + normBD)/2.0;
+      normAC = max(normA, normC);
+      normBD = max(normB, normD);
+      mag_vert = (normAC + normBD)/2.0;
       // Serial.print("mag_vert");
       // Serial.print(" ");
       // Serial.print(mag_vert - 2.0); // shift the graph down
       // Serial.print(" ");
 
       // normalized magnitude of horizontal sensors
-      // mag_horz = (normAB + normCD)/2.0;
+      normAB = max(normA, normB);
+      normCD = max(normC, normD);
+      mag_horz = (normAB + normCD)/2.0;
       // Serial.print("mag_horz");
       // Serial.print(" ");
       // Serial.print(mag_horz - 4.0); // shift the graph down
@@ -278,21 +282,21 @@ void read_meas(bool toggle) {
       // classify direction of gesture
       if ((filt_mag/(float) queue_length) > mag_threshold) {
         // vertical component
-        deriv_sum_vert += mag*(pos_vert - prev_pos_vert);
+        deriv_sum_vert += mag_vert*(pos_vert - prev_pos_vert);
         integral_vert += deriv_sum_vert;
         // horizontal component
-        deriv_sum_horz += mag*(pos_horz - prev_pos_horz);
+        deriv_sum_horz += mag_horz*(pos_horz - prev_pos_horz);
         integral_horz += deriv_sum_horz;
       } else {
         if (abs(integral_vert) > abs(integral_horz)) { // vertical
-          if (integral_vert < -0.3) {
+          if (integral_vert < -0.4) {
             Keyboard.write('D');
             // Keyboard.println(integral_vert);
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
             integral_horz = (float) 0;
-          } else if (integral_vert > 0.3) {
+          } else if (integral_vert > 0.4) {
             Keyboard.write('U');
             // Keyboard.println(integral_vert);
             deriv_sum_vert = (float) 0;
@@ -306,13 +310,13 @@ void read_meas(bool toggle) {
             integral_vert = (float) 0;
           }
         } else if (abs(integral_vert) < abs(integral_horz)) { // horizontal
-          if (integral_horz < -0.3) {
+          if (integral_horz < -0.4) {
             Keyboard.write('L');
             // Keyboard.println(integral_horz);
             deriv_sum_horz = (float) 0;
             integral_horz = (float) 0;
 
-          } else if (integral_horz > 0.3) {
+          } else if (integral_horz > 0.4) {
             Keyboard.write('R');
             // Keyboard.println(integral_horz);
             deriv_sum_horz = (float) 0;
