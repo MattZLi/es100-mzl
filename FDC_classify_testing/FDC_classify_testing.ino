@@ -262,8 +262,8 @@ void read_meas(bool toggle) {
       mag_queue.enqueue(abs_mag);
       // Serial.print("filt_mag");
       // Serial.print(" ");
-      Serial.print(filt_mag/(float) queue_length);
-      Serial.print(" ");
+      // Serial.print(filt_mag/(float) queue_length);
+      // Serial.print(" ");
 
       // normalized magnitude of vertical sensors
       normAC = max(normA, normC);
@@ -297,13 +297,13 @@ void read_meas(bool toggle) {
             Keyboard.write('D');
             // Keyboard.print(integral_vert);
             // Keyboard.print(KEY_RETURN);
-            // Serial.print("D");
-            // Serial.print(" ");
-            // Serial.print(integral_horz);
-            // Serial.print(" ");
-            // Serial.print(integral_vert);
-            // Serial.print(" ");
-            // Serial.println();
+            Serial.print("D");
+            Serial.print(" ");
+            Serial.print(integral_horz);
+            Serial.print(" ");
+            Serial.print(integral_vert);
+            Serial.print(" ");
+            Serial.println();
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
@@ -311,13 +311,13 @@ void read_meas(bool toggle) {
           } else if (integral_vert > up_thresh) {
             Keyboard.write('U');
             // Keyboard.println(integral_vert);
-            // Serial.print("U");
-            // Serial.print(" ");
-            // Serial.print(integral_horz);
-            // Serial.print(" ");
-            // Serial.print(integral_vert);
-            // Serial.print(" ");
-            // Serial.println();
+            Serial.print("U");
+            Serial.print(" ");
+            Serial.print(integral_horz);
+            Serial.print(" ");
+            Serial.print(integral_vert);
+            Serial.print(" ");
+            Serial.println();
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
@@ -325,13 +325,13 @@ void read_meas(bool toggle) {
           } else if (integral_vert != 0) {
             Keyboard.write('T');
             // Keyboard.println(integral_vert);
-            // Serial.print("T");
-            // Serial.print(" ");
-            // Serial.print(integral_horz);
-            // Serial.print(" ");
-            // Serial.print(integral_vert);
-            // Serial.print(" ");
-            // Serial.println();
+            Serial.print("T");
+            Serial.print(" ");
+            Serial.print(integral_horz);
+            Serial.print(" ");
+            Serial.print(integral_vert);
+            Serial.print(" ");
+            Serial.println();
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
@@ -341,13 +341,13 @@ void read_meas(bool toggle) {
           if (integral_horz < left_thresh) {
             Keyboard.write('L');
             // Keyboard.println(integral_horz);
-            // Serial.print("L");
-            // Serial.print(" ");
-            // Serial.print(integral_horz);
-            // Serial.print(" ");
-            // Serial.print(integral_vert);
-            // Serial.print(" ");
-            // Serial.println();
+            Serial.print("L");
+            Serial.print(" ");
+            Serial.print(integral_horz);
+            Serial.print(" ");
+            Serial.print(integral_vert);
+            Serial.print(" ");
+            Serial.println();
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
@@ -356,13 +356,13 @@ void read_meas(bool toggle) {
           } else if (integral_horz > right_thresh) {
             Keyboard.write('R');
             // Keyboard.println(integral_horz);
-            // Serial.print("R");
-            // Serial.print(" ");
-            // Serial.print(integral_horz);
-            // Serial.print(" ");
-            // Serial.print(integral_vert);
-            // Serial.print(" ");
-            // Serial.println();
+            Serial.print("R");
+            Serial.print(" ");
+            Serial.print(integral_horz);
+            Serial.print(" ");
+            Serial.print(integral_vert);
+            Serial.print(" ");
+            Serial.println();
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
@@ -371,13 +371,13 @@ void read_meas(bool toggle) {
           } else if (integral_horz != 0) {
             Keyboard.write('T');
             // Keyboard.println(integral_horz);
-            // Serial.print("T");
-            // Serial.print(" ");
-            // Serial.print(integral_horz);
-            // Serial.print(" ");
-            // Serial.print(integral_vert);
-            // Serial.print(" ");
-            // Serial.println();
+            Serial.print("T");
+            Serial.print(" ");
+            Serial.print(integral_horz);
+            Serial.print(" ");
+            Serial.print(integral_vert);
+            Serial.print(" ");
+            Serial.println();
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
@@ -436,7 +436,7 @@ void read_meas(bool toggle) {
       prev_pos_vert = pos_vert;
       prev_pos_horz = pos_horz;
 
-      Serial.println();
+      // Serial.println();
     }
   }
 }
