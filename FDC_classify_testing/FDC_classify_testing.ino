@@ -49,7 +49,7 @@ float capD = (float) 0.0;
 
 // magnitude and threshold
 float mag = (float) 0.0;
-float mag_threshold = 20.0;
+float mag_threshold = 3.5;
 
 float filt_mag = (float) 0.0;
 float abs_mag = (float) 0.0;
@@ -109,10 +109,10 @@ float deriv_sum_horz = (float) 0.0;
 float integral_horz = (float) 0.0;
 
 // thresholds for directions
-float down_thresh = -0.6;
-float up_thresh = 0.6;
-float left_thresh = -0.6;
-float right_thresh = 0.6; 
+float down_thresh = -0.4;
+float up_thresh = 0.4;
+float left_thresh = -0.4;
+float right_thresh = 0.4; 
 
 // ****************************************************************************************
 // Initialize FDC1004 device
@@ -176,6 +176,24 @@ void read_meas(bool toggle) {
       // add measurements to buffer for each MEASx
       switch (i) {
         case 0:
+          capD = cap;
+
+          minD = min(minD, capD);
+          maxD = max(maxD, capD);
+          temp_minD = min(temp_minD, capD);
+          temp_maxD = max(temp_maxD, capD);
+
+          if (maxD == minD) {
+            // Serial.print("maxD == minD");
+            normD = 0;
+          } else {
+            normD = (capD - minD)/(maxD - minD);
+          }
+
+          
+          
+          break;
+        case 1:
           // record capacitance of sensor A
           capA = cap;
           // dynamically sets min and max
@@ -192,8 +210,10 @@ void read_meas(bool toggle) {
             normA = (capA - minA)/(maxA - minA);
           }
           
+          
+          
           break;
-        case 1:
+        case 2:
           capB = cap;
 
           minB = min(minB, capB);
@@ -208,9 +228,9 @@ void read_meas(bool toggle) {
             normB = (capB - minB)/(maxB - minB);
           }
           
-          
+
           break;
-        case 2:
+        case 3:
           capC = cap;
 
           minC = min(minC, capC);
@@ -223,22 +243,6 @@ void read_meas(bool toggle) {
             normC = 0;
           } else {
             normC = (capC - minC)/(maxC - minC);
-          }
-
-          break;
-        case 3:
-          capD = cap;
-
-          minD = min(minD, capD);
-          maxD = max(maxD, capD);
-          temp_minD = min(temp_minD, capD);
-          temp_maxD = max(temp_maxD, capD);
-
-          if (maxD == minD) {
-            // Serial.print("maxD == minD");
-            normD = 0;
-          } else {
-            normD = (capD - minD)/(maxD - minD);
           }
 
           break;
@@ -291,7 +295,15 @@ void read_meas(bool toggle) {
         if (abs(integral_vert) > abs(integral_horz)) { // vertical
           if (integral_vert < down_thresh) {
             Keyboard.write('D');
-            // Keyboard.println(integral_vert);
+            // Keyboard.print(integral_vert);
+            // Keyboard.print(KEY_RETURN);
+            // Serial.print("D");
+            // Serial.print(" ");
+            // Serial.print(integral_horz);
+            // Serial.print(" ");
+            // Serial.print(integral_vert);
+            // Serial.print(" ");
+            // Serial.println();
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
@@ -299,6 +311,13 @@ void read_meas(bool toggle) {
           } else if (integral_vert > up_thresh) {
             Keyboard.write('U');
             // Keyboard.println(integral_vert);
+            // Serial.print("U");
+            // Serial.print(" ");
+            // Serial.print(integral_horz);
+            // Serial.print(" ");
+            // Serial.print(integral_vert);
+            // Serial.print(" ");
+            // Serial.println();
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
@@ -306,13 +325,29 @@ void read_meas(bool toggle) {
           } else if (integral_vert != 0) {
             Keyboard.write('T');
             // Keyboard.println(integral_vert);
+            // Serial.print("T");
+            // Serial.print(" ");
+            // Serial.print(integral_horz);
+            // Serial.print(" ");
+            // Serial.print(integral_vert);
+            // Serial.print(" ");
+            // Serial.println();
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
+            deriv_sum_horz = (float) 0;
+            integral_horz = (float) 0;
           }
         } else if (abs(integral_vert) < abs(integral_horz)) { // horizontal
           if (integral_horz < left_thresh) {
             Keyboard.write('L');
             // Keyboard.println(integral_horz);
+            // Serial.print("L");
+            // Serial.print(" ");
+            // Serial.print(integral_horz);
+            // Serial.print(" ");
+            // Serial.print(integral_vert);
+            // Serial.print(" ");
+            // Serial.println();
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
@@ -321,6 +356,13 @@ void read_meas(bool toggle) {
           } else if (integral_horz > right_thresh) {
             Keyboard.write('R');
             // Keyboard.println(integral_horz);
+            // Serial.print("R");
+            // Serial.print(" ");
+            // Serial.print(integral_horz);
+            // Serial.print(" ");
+            // Serial.print(integral_vert);
+            // Serial.print(" ");
+            // Serial.println();
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
@@ -329,6 +371,13 @@ void read_meas(bool toggle) {
           } else if (integral_horz != 0) {
             Keyboard.write('T');
             // Keyboard.println(integral_horz);
+            // Serial.print("T");
+            // Serial.print(" ");
+            // Serial.print(integral_horz);
+            // Serial.print(" ");
+            // Serial.print(integral_vert);
+            // Serial.print(" ");
+            // Serial.println();
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
