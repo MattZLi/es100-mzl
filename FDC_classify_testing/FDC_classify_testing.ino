@@ -8,8 +8,13 @@
 //#include <stdio.h>
 #include <Wire.h>   // Include the I2C communications "Wire" library (Arduino IDE supplied)
 #include <QueueArray.h> // Include library for queues
-#include <Keyboard.h>
-#include <Mouse.h>
+
+#include <bluefruit.h> // Bluetooth by Adafruit
+
+BLEDis bledis;
+BLEHidAdafruit blehid;
+
+bool hasKeyPressed = false;
 
 #define INT_MAX 10000;
 
@@ -121,6 +126,52 @@ void setup() {
   Wire.begin();              // join i2c bus (address optional for master)
   Serial.begin(115200);      // start serial communication at 115200 bps
   
+  // Set up BLE
+  while ( !Serial ) delay(10);   // for nrf52840 with native usb
+
+  Serial.println("Bluefruit52 HID Keyboard Example");
+  Serial.println("--------------------------------\n");
+
+  Serial.println();
+  Serial.println("Go to your phone's Bluetooth settings to pair your device");
+  Serial.println("then open an application that accepts keyboard input");
+
+  Serial.println();
+  Serial.println("Enter the character(s) to send:");
+  Serial.println();  
+
+  Bluefruit.begin();
+  // Set max power. Accepted values are: -40, -30, -20, -16, -12, -8, -4, 0, 4
+  Bluefruit.setTxPower(4);
+  Bluefruit.setName("Bluefruit52");
+
+  // Configure and Start Device Information Service
+  bledis.setManufacturer("Adafruit Industries");
+  bledis.setModel("Bluefruit Feather 52");
+  bledis.begin();
+
+  /* Start BLE HID
+   * Note: Apple requires BLE device must have min connection interval >= 20m
+   * ( The smaller the connection interval the faster we could send data).
+   * However for HID and MIDI device, Apple could accept min connection interval 
+   * up to 11.25 ms. Therefore BLEHidAdafruit::begin() will try to set the min and max
+   * connection interval to 11.25  ms and 15 ms respectively for best performance.
+   */
+  blehid.begin();
+
+  // Set callback for set LED from central
+  blehid.setKeyboardLedCallback(set_keyboard_led);
+
+  /* Set connection interval (min, max) to your perferred value.
+   * Note: It is already set by BLEHidAdafruit::begin() to 11.25ms - 15ms
+   * min = 9*1.25=11.25 ms, max = 12*1.25= 15 ms 
+   */
+  /* Bluefruit.setConnInterval(9, 12); */
+
+  // Set up and start advertising
+  startAdv();
+
+  // Set up I2C for the FDC1004
   write16(FDC_CONFIG, 0x8000);  // Issue Reset Command to chip
 
   // Setup the MEASx Registers for single ended measurements, CINx to MEASx
@@ -143,10 +194,70 @@ void setup() {
   }
 }
 
+// helper function for BLE
+void startAdv(void)
+{  
+  // Advertising packet
+  Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
+  Bluefruit.Advertising.addTxPower();
+  Bluefruit.Advertising.addAppearance(BLE_APPEARANCE_HID_KEYBOARD);
+  
+  // Include BLE HID service
+  Bluefruit.Advertising.addService(blehid);
+
+  // There is enough room for the dev name in the advertising packet
+  Bluefruit.Advertising.addName();
+  
+  /* Start Advertising
+   * - Enable auto advertising if disconnected
+   * - Interval:  fast mode = 20 ms, slow mode = 152.5 ms
+   * - Timeout for fast mode is 30 seconds
+   * - Start(timeout) with timeout = 0 will advertise forever (until connected)
+   * 
+   * For recommended advertising interval
+   * https://developer.apple.com/library/content/qa/qa1931/_index.html   
+   */
+  Bluefruit.Advertising.restartOnDisconnect(true);
+  Bluefruit.Advertising.setInterval(32, 244);    // in unit of 0.625 ms
+  Bluefruit.Advertising.setFastTimeout(30);      // number of seconds in fast mode
+  Bluefruit.Advertising.start(0);                // 0 = Don't stop advertising after n seconds
+}
+
 // *********************************************************************
 // Main loop, measure from all 4 channels forever
 //
 void loop() {
+  // Send character over BLE
+
+  // Only send KeyRelease if previously pressed to avoid sending
+  // multiple keyRelease reports (that consume memory and bandwidth)
+  if ( hasKeyPressed )
+  {
+    hasKeyPressed = false;
+    blehid.keyRelease();
+    
+    // Delay a bit after a report
+    delay(5);
+  }
+    
+  if (Serial.available())
+  {
+    char ch = (char) Serial.read();
+
+    // echo
+    Serial.write(ch); 
+
+    blehid.keyPress(ch);
+    hasKeyPressed = true;
+    
+    // Delay a bit after a report
+    delay(5);
+  }
+
+  // Request CPU to enter low-power mode until an event/interrupt occurs
+  waitForEvent(); 
+
+
   uint16_t value = 0;             // var to hold measurement
   write16(FDC_CONFIG, 0x0DF0);    // trigger all 4 measurements
   delay(3 * 4);                   // wait for all 4 measurements to complete
@@ -294,44 +405,19 @@ void read_meas(bool toggle) {
       } else {
         if (abs(integral_vert) > abs(integral_horz)) { // vertical
           if (integral_vert < down_thresh) {
-            Keyboard.write('D');
-            // Keyboard.print(integral_vert);
-            // Keyboard.print(KEY_RETURN);
             Serial.print("D");
-            Serial.print(" ");
-            Serial.print(integral_horz);
-            Serial.print(" ");
-            Serial.print(integral_vert);
-            Serial.print(" ");
-            Serial.println();
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
             integral_horz = (float) 0;
           } else if (integral_vert > up_thresh) {
-            Keyboard.write('U');
-            // Keyboard.println(integral_vert);
             Serial.print("U");
-            Serial.print(" ");
-            Serial.print(integral_horz);
-            Serial.print(" ");
-            Serial.print(integral_vert);
-            Serial.print(" ");
-            Serial.println();
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
             integral_horz = (float) 0;
           } else if (integral_vert != 0) {
-            Keyboard.write('T');
-            // Keyboard.println(integral_vert);
             Serial.print("T");
-            Serial.print(" ");
-            Serial.print(integral_horz);
-            Serial.print(" ");
-            Serial.print(integral_vert);
-            Serial.print(" ");
-            Serial.println();
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
@@ -339,45 +425,21 @@ void read_meas(bool toggle) {
           }
         } else if (abs(integral_vert) < abs(integral_horz)) { // horizontal
           if (integral_horz < left_thresh) {
-            Keyboard.write('L');
-            // Keyboard.println(integral_horz);
             Serial.print("L");
-            Serial.print(" ");
-            Serial.print(integral_horz);
-            Serial.print(" ");
-            Serial.print(integral_vert);
-            Serial.print(" ");
-            Serial.println();
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
             integral_horz = (float) 0;
 
           } else if (integral_horz > right_thresh) {
-            Keyboard.write('R');
-            // Keyboard.println(integral_horz);
             Serial.print("R");
-            Serial.print(" ");
-            Serial.print(integral_horz);
-            Serial.print(" ");
-            Serial.print(integral_vert);
-            Serial.print(" ");
-            Serial.println();
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
             integral_horz = (float) 0;
 
           } else if (integral_horz != 0) {
-            Keyboard.write('T');
-            // Keyboard.println(integral_horz);
             Serial.print("T");
-            Serial.print(" ");
-            Serial.print(integral_horz);
-            Serial.print(" ");
-            Serial.print(integral_vert);
-            Serial.print(" ");
-            Serial.println();
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
@@ -385,30 +447,6 @@ void read_meas(bool toggle) {
           }
         }
       }
-
-      // Serial.print("deriv");
-      // Serial.print(" ");
-      // Serial.print(deriv_sum_vert);
-      // // Serial.print((float) deriv_sum_vert);
-      // Serial.print(" ");
-
-      // Serial.print("integ");
-      // Serial.print(" ");
-      // Serial.print(integral_vert);
-      // Serial.print((float) integral_vert);
-      // Serial.print(" ");
-
-      // Serial.print("deriv");
-      // Serial.print(" ");
-      // Serial.print(deriv_sum_horz);
-      // Serial.print((float) deriv_sum_horz);
-      // Serial.print(" ");
-
-      // Serial.print("integ");
-      // Serial.print(" ");
-      // Serial.print(integral_horz);
-      // Serial.print((float) integral_horz);
-      // Serial.print(" ");
 
       // refresh mins and maxes every 10 seconds
       unsigned long curr_t = millis();
@@ -489,4 +527,24 @@ bool QueueEqual(QueueArray <int>* A, QueueArray <int>* B) {
     }
   }
   return true;
+}
+
+/**
+ * Callback invoked when received Set LED from central.
+ * Must be set previously with setKeyboardLedCallback()
+ *
+ * The LED bit map is as follows: (also defined by KEYBOARD_LED_* )
+ *    Kana (4) | Compose (3) | ScrollLock (2) | CapsLock (1) | Numlock (0)
+ */
+void set_keyboard_led(uint8_t led_bitmap)
+{
+  // light up Red Led if any bits is set
+  if ( led_bitmap )
+  {
+    ledOn( LED_RED );
+  }
+  else
+  {
+    ledOff( LED_RED );
+  }
 }
