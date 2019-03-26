@@ -147,38 +147,38 @@ void setup() {
   for (int i = 0; i < queue_length; i++){
     mag_queue.enqueue(0);
   }
-  Serial.println("Hello");
-  // // Set up BLE
-  // Bluefruit.begin();
-  // // Set max power. Accepted values are: -40, -30, -20, -16, -12, -8, -4, 0, 4
-  // Bluefruit.setTxPower(4);
-  // Bluefruit.setName("Bluefruit52");
 
-  // // Configure and Start Device Information Service
-  // bledis.setManufacturer("Adafruit Industries");
-  // bledis.setModel("Bluefruit Feather 52");
-  // bledis.begin();
+  // Set up BLE
+  Bluefruit.begin();
+  // Set max power. Accepted values are: -40, -30, -20, -16, -12, -8, -4, 0, 4
+  Bluefruit.setTxPower(4);
+  Bluefruit.setName("Bluefruit52");
 
-  // /* Start BLE HID
-  //  * Note: Apple requires BLE device must have min connection interval >= 20m
-  //  * ( The smaller the connection interval the faster we could send data).
-  //  * However for HID and MIDI device, Apple could accept min connection interval 
-  //  * up to 11.25 ms. Therefore BLEHidAdafruit::begin() will try to set the min and max
-  //  * connection interval to 11.25  ms and 15 ms respectively for best performance.
-  //  */
-  // blehid.begin();
+  // Configure and Start Device Information Service
+  bledis.setManufacturer("Adafruit Industries");
+  bledis.setModel("Bluefruit Feather 52");
+  bledis.begin();
 
-  // // Set callback for set LED from central
-  // blehid.setKeyboardLedCallback(set_keyboard_led);
+  /* Start BLE HID
+   * Note: Apple requires BLE device must have min connection interval >= 20m
+   * ( The smaller the connection interval the faster we could send data).
+   * However for HID and MIDI device, Apple could accept min connection interval 
+   * up to 11.25 ms. Therefore BLEHidAdafruit::begin() will try to set the min and max
+   * connection interval to 11.25  ms and 15 ms respectively for best performance.
+   */
+  blehid.begin();
 
-  // /* Set connection interval (min, max) to your perferred value.
-  //  * Note: It is already set by BLEHidAdafruit::begin() to 11.25ms - 15ms
-  //  * min = 9*1.25=11.25 ms, max = 12*1.25= 15 ms 
-  //  */
-  // /* Bluefruit.setConnInterval(9, 12); */
+  // Set callback for set LED from central
+  blehid.setKeyboardLedCallback(set_keyboard_led);
 
-  // // Set up and start advertising
-  // startAdv();
+  /* Set connection interval (min, max) to your perferred value.
+   * Note: It is already set by BLEHidAdafruit::begin() to 11.25ms - 15ms
+   * min = 9*1.25=11.25 ms, max = 12*1.25= 15 ms 
+   */
+  /* Bluefruit.setConnInterval(9, 12); */
+
+  // Set up and start advertising
+  startAdv();
 }
 
 // helper function for BLE
@@ -214,7 +214,6 @@ void startAdv(void)
 // Main loop, measure from all 4 channels forever
 //
 void loop() {
-  Serial.println("trigger");
   uint16_t value = 0;             // var to hold measurement
   write16(FDC_CONFIG, 0x0DF0);    // trigger all 4 measurements
   delay(3 * 4);                   // wait for all 4 measurements to complete
@@ -362,7 +361,7 @@ void read_meas(bool toggle) {
       } else {
         if (abs(integral_vert) > abs(integral_horz)) { // vertical
           if (integral_vert < down_thresh) {
-            Serial.print("D");
+            // Serial.print("D");
             // blehid.keyPress('D');
             // ble_keypress('D');
             deriv_sum_vert = (float) 0;
@@ -370,7 +369,7 @@ void read_meas(bool toggle) {
             deriv_sum_horz = (float) 0;
             integral_horz = (float) 0;
           } else if (integral_vert > up_thresh) {
-            Serial.print("U");
+            // Serial.print("U");
             // blehid.keyPress('U');
             // ble_keypress('U');
             deriv_sum_vert = (float) 0;
@@ -378,7 +377,7 @@ void read_meas(bool toggle) {
             deriv_sum_horz = (float) 0;
             integral_horz = (float) 0;
           } else if (integral_vert != 0) {
-            Serial.print("T");
+            // Serial.print("T");
             // blehid.keyPress('T');
             // ble_keypress('T');
             deriv_sum_vert = (float) 0;
@@ -388,7 +387,7 @@ void read_meas(bool toggle) {
           }
         } else if (abs(integral_vert) < abs(integral_horz)) { // horizontal
           if (integral_horz < left_thresh) {
-            Serial.print("L");
+            // Serial.print("L");
             // blehid.keyPress('L');
             // ble_keypress('L');
             deriv_sum_vert = (float) 0;
@@ -397,7 +396,7 @@ void read_meas(bool toggle) {
             integral_horz = (float) 0;
 
           } else if (integral_horz > right_thresh) {
-            Serial.print("R");
+            // Serial.print("R");
             // blehid.keyPress('R');
             // ble_keypress('R');
             deriv_sum_vert = (float) 0;
@@ -406,7 +405,7 @@ void read_meas(bool toggle) {
             integral_horz = (float) 0;
 
           } else if (integral_horz != 0) {
-            Serial.print("T");
+            // Serial.print("T");
             // blehid.keyPress('T');
             // ble_keypress('T');
             deriv_sum_vert = (float) 0;
