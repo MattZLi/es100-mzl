@@ -338,19 +338,19 @@ void read_meas(bool toggle) {
 
       unsigned long curr_t = millis();
       if ((curr_t - last_print) > 1000) {
-        float_to_str(strcap, 10, capD);
+        float_to_str(strcap, 10, normD);
         blehid.keySequence(strcap, 50);
         blehid.keyPress(' ');
 
-        float_to_str(strcap, 10, capA);
+        float_to_str(strcap, 10, normA);
         blehid.keySequence(strcap, 50);
         blehid.keyPress(' ');
 
-        float_to_str(strcap, 10, capB);
+        float_to_str(strcap, 10, normB);
         blehid.keySequence(strcap, 50);
         blehid.keyPress(' ');
 
-        float_to_str(strcap, 10, capC);
+        float_to_str(strcap, 10, normC);
         blehid.keySequence(strcap, 50);
         blehid.keyPress(' ');
 
