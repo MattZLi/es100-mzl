@@ -72,6 +72,8 @@ float maxD = (float) 0.0;
 // timer to track when to refresh min/max
 unsigned long last_t = 0;
 
+unsigned long last_print = 0;
+
 // buffer for previous min/mix
 float temp_minA = (float) INT_MAX;
 float temp_maxA = (float) 0.0;
@@ -181,6 +183,9 @@ void setup() {
 
   // Set up and start advertising
   startAdv();
+
+  delay(10000);
+  blehid.keyPress('H');
 }
 
 // helper function for BLE
@@ -219,8 +224,14 @@ void loop() {
   uint16_t value = 0;             // var to hold measurement
   write16(FDC_CONFIG, 0x0DF0);    // trigger all 4 measurements
   delay(3 * 4);                   // wait for all 4 measurements to complete
-  read_meas(toggle);              // read the 4 measurements
-  toggle = !toggle;               // for some reasons every other trigger is bogus
+  // check if the measurements are ready
+  uint32_t done;
+  do {
+    uint32_t state = read16(FDC_CONFIG);
+    done = (state & 0xF);
+  }
+  while (done != 0xF);
+  read_meas(toggle);
 }
 
 // **************************************************************
@@ -245,33 +256,57 @@ void read_meas(bool toggle) {
       // add measurements to buffer for each MEASx
       switch (i) {
         case 0:
-          blehid.keySequence("cap0 ", 10);
-          float_to_str(strcap, 10, cap);
-          blehid.keySequence(strcap, 10);
-          blehid.keyPress(' ');
+          
+          capD = cap;
+          // blehid.keySequence("cap0 ", 10);
+          
           break;
         case 1:
-          blehid.keySequence("cap1 ", 10);
-          float_to_str(strcap, 10, cap);
-          blehid.keySequence(strcap, 10);
-          blehid.keyPress(' ');
+          capA = cap;
+          // blehid.keySequence("cap1 ", 10);
+          // float_to_str(strcap, 10, cap);
+          // blehid.keySequence(strcap, 10);
+          // blehid.keyPress(' ');
           break;
         case 2:
-          blehid.keySequence("cap2 ", 10);
+          capB = cap;
+          // blehid.keySequence("cap2 ", 10);
           
-          float_to_str(strcap, 10, cap);
-          blehid.keySequence(strcap, 10);
-          blehid.keyPress(' ');
+          // float_to_str(strcap, 10, cap);
+          // blehid.keySequence(strcap, 10);
+          // blehid.keyPress(' ');
           break;
         case 3:
-          blehid.keySequence("cap3 ", 10);
+          capC = cap;
+          // blehid.keySequence("cap3 ", 10);
           
-          float_to_str(strcap, 10, cap);
-          blehid.keySequence(strcap, 10);
-          blehid.keyPress(' ');
+          // float_to_str(strcap, 10, cap);
+          // blehid.keySequence(strcap, 10);
+          // blehid.keyPress(' ');
           break;
         default:
           break;
+      }
+
+      unsigned long curr_t = millis();
+      if ((curr_t - last_print) > 1000) {
+        float_to_str(strcap, 10, capD);
+        blehid.keySequence(strcap, 50);
+        blehid.keyPress(' ');
+
+        float_to_str(strcap, 10, capA);
+        blehid.keySequence(strcap, 50);
+        blehid.keyPress(' ');
+
+        float_to_str(strcap, 10, capB);
+        blehid.keySequence(strcap, 50);
+        blehid.keyPress(' ');
+
+        float_to_str(strcap, 10, capC);
+        blehid.keySequence(strcap, 50);
+        blehid.keyPress(' ');
+
+        last_print = curr_t;
       }
 
     }
