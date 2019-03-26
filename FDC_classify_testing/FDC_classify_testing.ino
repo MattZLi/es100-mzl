@@ -246,29 +246,27 @@ void read_meas(bool toggle) {
       switch (i) {
         case 0:
           blehid.keySequence("cap0 ", 10);
-          
-          itoa((int) cap, strcap, 10);
+          float_to_str(strcap, 10, cap);
           blehid.keySequence(strcap, 10);
           blehid.keyPress(' ');
           break;
         case 1:
           blehid.keySequence("cap1 ", 10);
-          
-          itoa((int) cap, strcap, 10);
+          float_to_str(strcap, 10, cap);
           blehid.keySequence(strcap, 10);
           blehid.keyPress(' ');
           break;
         case 2:
           blehid.keySequence("cap2 ", 10);
           
-          itoa((int) cap, strcap, 10);
+          float_to_str(strcap, 10, cap);
           blehid.keySequence(strcap, 10);
           blehid.keyPress(' ');
           break;
         case 3:
           blehid.keySequence("cap3 ", 10);
           
-          itoa((int) cap, strcap, 10);
+          float_to_str(strcap, 10, cap);
           blehid.keySequence(strcap, 10);
           blehid.keyPress(' ');
           break;
@@ -347,5 +345,19 @@ void set_keyboard_led(uint8_t led_bitmap)
   else
   {
     ledOff( LED_RED );
+  }
+}
+
+void float_to_str(char* out, int buffsize, float val) {
+  itoa(val, out, 10);
+  int i = 0;
+  while (out[i]) {
+    i++;
+  }
+  if (i < buffsize - 5) {
+    out[i] = '.';
+    out[i+1] = '0' + ((int) (val * 10) % 10);
+    out[i+2] = '0' + ((int) (val * 100) % 10);
+    out[i+3] = '\0';
   }
 }
