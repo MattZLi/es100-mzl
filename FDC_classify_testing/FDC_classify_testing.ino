@@ -259,14 +259,40 @@ void read_meas(bool toggle) {
           
           capD = cap;
           // blehid.keySequence("cap0 ", 10);
+
+          minD = min(minD, capD);
+          maxD = max(maxD, capD);
+          temp_minD = min(temp_minD, capD);
+          temp_maxD = max(temp_maxD, capD);
+
+          if (maxD <= minD) {
+            normD = 0;
+          } else {
+            normD = (capD - minD)/(maxD - minD);
+          }
           
           break;
         case 1:
+          // record capacitance of sensor A
           capA = cap;
           // blehid.keySequence("cap1 ", 10);
           // float_to_str(strcap, 10, cap);
           // blehid.keySequence(strcap, 10);
           // blehid.keyPress(' ');
+          
+          // dynamically sets min and max
+          minA = min(minA, capA);
+          maxA = max(maxA, capA);
+          // records min and max value over refresh period
+          temp_minA = min(temp_minA, capA);
+          temp_maxA = max(temp_maxA, capA);
+          // normalize cap value between 0 and 1
+          if (maxA <= minA) {
+            normA = 0;
+          } else {
+            normA = (capA - minA)/(maxA - minA);
+          }
+
           break;
         case 2:
           capB = cap;
@@ -275,6 +301,17 @@ void read_meas(bool toggle) {
           // float_to_str(strcap, 10, cap);
           // blehid.keySequence(strcap, 10);
           // blehid.keyPress(' ');
+          minB = min(minB, capB);
+          maxB = max(maxB, capB);
+          temp_minB = min(temp_minB, capB);
+          temp_maxB = max(temp_maxB, capB);
+
+          if (maxB <= minB) {
+            normB = 0;
+          } else {
+            normB = (capB - minB)/(maxB - minB);
+          }
+
           break;
         case 3:
           capC = cap;
@@ -283,6 +320,17 @@ void read_meas(bool toggle) {
           // float_to_str(strcap, 10, cap);
           // blehid.keySequence(strcap, 10);
           // blehid.keyPress(' ');
+          minC = min(minC, capC);
+          maxC = max(maxC, capC);
+          temp_minC = min(temp_minC, capC);
+          temp_maxC = max(temp_maxC, capC);
+
+          if (maxC <= minC) {
+            normC = 0;
+          } else {
+            normC = (capC - minC)/(maxC - minC);
+          }
+
           break;
         default:
           break;
