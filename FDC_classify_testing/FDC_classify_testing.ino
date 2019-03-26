@@ -8,8 +8,8 @@
 //#include <stdio.h>
 #include <Wire.h>   // Include the I2C communications "Wire" library (Arduino IDE supplied)
 #include <QueueArray.h> // Include library for queues
-#include <Keyboard.h>
-#include <Mouse.h>
+// #include <Keyboard.h>
+// #include <Mouse.h>
 
 #define INT_MAX 10000;
 
@@ -294,7 +294,7 @@ void read_meas(bool toggle) {
       } else {
         if (abs(integral_vert) > abs(integral_horz)) { // vertical
           if (integral_vert < down_thresh) {
-            Keyboard.write('D');
+            // Keyboard.write('D');
             // Keyboard.print(integral_vert);
             // Keyboard.print(KEY_RETURN);
             // Serial.print("D");
@@ -309,7 +309,7 @@ void read_meas(bool toggle) {
             deriv_sum_horz = (float) 0;
             integral_horz = (float) 0;
           } else if (integral_vert > up_thresh) {
-            Keyboard.write('U');
+            // Keyboard.write('U');
             // Keyboard.println(integral_vert);
             // Serial.print("U");
             // Serial.print(" ");
@@ -323,7 +323,7 @@ void read_meas(bool toggle) {
             deriv_sum_horz = (float) 0;
             integral_horz = (float) 0;
           } else if (integral_vert != 0) {
-            Keyboard.write('T');
+            // Keyboard.write('T');
             // Keyboard.println(integral_vert);
             // Serial.print("T");
             // Serial.print(" ");
@@ -339,7 +339,7 @@ void read_meas(bool toggle) {
           }
         } else if (abs(integral_vert) < abs(integral_horz)) { // horizontal
           if (integral_horz < left_thresh) {
-            Keyboard.write('L');
+            // Keyboard.write('L');
             // Keyboard.println(integral_horz);
             // Serial.print("L");
             // Serial.print(" ");
@@ -354,7 +354,7 @@ void read_meas(bool toggle) {
             integral_horz = (float) 0;
 
           } else if (integral_horz > right_thresh) {
-            Keyboard.write('R');
+            // Keyboard.write('R');
             // Keyboard.println(integral_horz);
             // Serial.print("R");
             // Serial.print(" ");
@@ -369,7 +369,7 @@ void read_meas(bool toggle) {
             integral_horz = (float) 0;
 
           } else if (integral_horz != 0) {
-            Keyboard.write('T');
+            // Keyboard.write('T');
             // Keyboard.println(integral_horz);
             // Serial.print("T");
             // Serial.print(" ");
