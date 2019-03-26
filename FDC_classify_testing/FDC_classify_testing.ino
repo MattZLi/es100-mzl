@@ -148,6 +148,8 @@ void setup() {
     mag_queue.enqueue(0);
   }
 
+  // delay(10000);
+
   // Set up BLE
   Bluefruit.begin();
   // Set max power. Accepted values are: -40, -30, -20, -16, -12, -8, -4, 0, 4
@@ -238,211 +240,42 @@ void read_meas(bool toggle) {
     val = ((msb << 16) + lsb) >> 8;  // 24 bit combined MSB and LSB
     cap = (float)val * gain;         // convert to pf
     if (toggle) {
-      //      Serial.print(cap);
-      //      Serial.print(" ");    // needed to delienate between next series
+
+      char strcap [10];
       // add measurements to buffer for each MEASx
       switch (i) {
         case 0:
-          capD = cap;
-
-          minD = min(minD, capD);
-          maxD = max(maxD, capD);
-          temp_minD = min(temp_minD, capD);
-          temp_maxD = max(temp_maxD, capD);
-
-          if (maxD == minD) {
-            // Serial.print("maxD == minD");
-            normD = 0;
-          } else {
-            normD = (capD - minD)/(maxD - minD);
-          }
-
+          blehid.keySequence("cap0 ", 10);
           
-          
+          itoa((int) cap, strcap, 10);
+          blehid.keySequence(strcap, 10);
+          blehid.keyPress(' ');
           break;
         case 1:
-          // record capacitance of sensor A
-          capA = cap;
-          // dynamically sets min and max
-          minA = min(minA, capA);
-          maxA = max(maxA, capA);
-          // records min and max value over refresh period
-          temp_minA = min(temp_minA, capA);
-          temp_maxA = max(temp_maxA, capA);
-          // normalize cap value between 0 and 1
-          if (maxA == minA) {
-            normA = 0;
-            // Serial.print("maxA == minA");
-          } else {
-            normA = (capA - minA)/(maxA - minA);
-          }
+          blehid.keySequence("cap1 ", 10);
           
-          
-          
+          itoa((int) cap, strcap, 10);
+          blehid.keySequence(strcap, 10);
+          blehid.keyPress(' ');
           break;
         case 2:
-          capB = cap;
-
-          minB = min(minB, capB);
-          maxB = max(maxB, capB);
-          temp_minB = min(temp_minB, capB);
-          temp_maxB = max(temp_maxB, capB);
-
-          if (maxB == minB) {
-            // Serial.print("maxB == minB");
-            normB = 0;
-          } else {
-            normB = (capB - minB)/(maxB - minB);
-          }
+          blehid.keySequence("cap2 ", 10);
           
-
+          itoa((int) cap, strcap, 10);
+          blehid.keySequence(strcap, 10);
+          blehid.keyPress(' ');
           break;
         case 3:
-          capC = cap;
-
-          minC = min(minC, capC);
-          maxC = max(maxC, capC);
-          temp_minC = min(temp_minC, capC);
-          temp_maxC = max(temp_maxC, capC);
-
-          if (maxC == minC) {
-            // Serial.print("maxC == minC");
-            normC = 0;
-          } else {
-            normC = (capC - minC)/(maxC - minC);
-          }
-
+          blehid.keySequence("cap3 ", 10);
+          
+          itoa((int) cap, strcap, 10);
+          blehid.keySequence(strcap, 10);
+          blehid.keyPress(' ');
           break;
         default:
           break;
       }
 
-      // calculate 2-dimensional position
-      // A (-1, 1); B (-1, -1); C (1, 1); D(1, -1)
-      pos_horz = (- normA - normB + normC + normD)/2.0;
-      pos_vert = (normA - normB + normC - normD)/2.0;
-
-      // low-pass filter absolute magnitude of vertical sensors
-      abs_mag = capA + capB + capC + capD;
-
-      filt_mag = filt_mag - mag_queue.dequeue() + abs_mag;
-      mag_queue.enqueue(abs_mag);
-      // Serial.print("filt_mag");
-      // Serial.print(" ");
-      Serial.print(filt_mag/(float) queue_length);
-      Serial.print(" ");
-
-      // normalized magnitude of vertical sensors
-      normAC = max(normA, normC);
-      normBD = max(normB, normD);
-      mag_vert = (normAC + normBD)/2.0;
-      // Serial.print("mag_vert");
-      // Serial.print(" ");
-      // Serial.print(mag_vert - 2.0); // shift the graph down
-      // Serial.print(" ");
-
-      // normalized magnitude of horizontal sensors
-      normAB = max(normA, normB);
-      normCD = max(normC, normD);
-      mag_horz = (normAB + normCD)/2.0;
-      // Serial.print("mag_horz");
-      // Serial.print(" ");
-      // Serial.print(mag_horz - 4.0); // shift the graph down
-      // Serial.print(" ");
-
-      // classify direction of gesture
-      if ((filt_mag/(float) queue_length) > mag_threshold) {
-        // vertical component
-        deriv_sum_vert += mag_vert*(pos_vert - prev_pos_vert);
-        integral_vert += deriv_sum_vert;
-        // horizontal component
-        deriv_sum_horz += mag_horz*(pos_horz - prev_pos_horz);
-        integral_horz += deriv_sum_horz;
-      } else {
-        if (abs(integral_vert) > abs(integral_horz)) { // vertical
-          if (integral_vert < down_thresh) {
-            // Serial.print("D");
-            // blehid.keyPress('D');
-            // ble_keypress('D');
-            deriv_sum_vert = (float) 0;
-            integral_vert = (float) 0;
-            deriv_sum_horz = (float) 0;
-            integral_horz = (float) 0;
-          } else if (integral_vert > up_thresh) {
-            // Serial.print("U");
-            // blehid.keyPress('U');
-            // ble_keypress('U');
-            deriv_sum_vert = (float) 0;
-            integral_vert = (float) 0;
-            deriv_sum_horz = (float) 0;
-            integral_horz = (float) 0;
-          } else if (integral_vert != 0) {
-            // Serial.print("T");
-            // blehid.keyPress('T');
-            // ble_keypress('T');
-            deriv_sum_vert = (float) 0;
-            integral_vert = (float) 0;
-            deriv_sum_horz = (float) 0;
-            integral_horz = (float) 0;
-          }
-        } else if (abs(integral_vert) < abs(integral_horz)) { // horizontal
-          if (integral_horz < left_thresh) {
-            // Serial.print("L");
-            // blehid.keyPress('L');
-            // ble_keypress('L');
-            deriv_sum_vert = (float) 0;
-            integral_vert = (float) 0;
-            deriv_sum_horz = (float) 0;
-            integral_horz = (float) 0;
-
-          } else if (integral_horz > right_thresh) {
-            // Serial.print("R");
-            // blehid.keyPress('R');
-            // ble_keypress('R');
-            deriv_sum_vert = (float) 0;
-            integral_vert = (float) 0;
-            deriv_sum_horz = (float) 0;
-            integral_horz = (float) 0;
-
-          } else if (integral_horz != 0) {
-            // Serial.print("T");
-            // blehid.keyPress('T');
-            // ble_keypress('T');
-            deriv_sum_vert = (float) 0;
-            integral_vert = (float) 0;
-            deriv_sum_horz = (float) 0;
-            integral_horz = (float) 0;
-          }
-        }
-      }
-
-      // refresh mins and maxes every 10 seconds
-      unsigned long curr_t = millis();
-      if ((curr_t - last_t) > 10000) {
-        last_t = curr_t;
-        minA = (minA + temp_minA)/2.0;
-        maxA = (maxA + temp_maxA)/2.0;
-        minB = (minB + temp_minB)/2.0;
-        maxB = (maxB + temp_maxB)/2.0;
-        minC = (minC + temp_minC)/2.0;
-        maxC = (maxC + temp_maxC)/2.0;
-        minD = (minD + temp_minD)/2.0;
-        maxD = (maxD + temp_maxD)/2.0;
-        
-        temp_minA = (float) INT_MAX;
-        temp_maxA = (float) 0.0;
-        temp_minB = (float) INT_MAX;
-        temp_maxB = (float) 0.0;
-        temp_minC = (float) INT_MAX;
-        temp_maxC = (float) 0.0;
-        temp_minD = (float) INT_MAX;
-        temp_maxD = (float) 0.0;
-      }
-
-      prev_pos_vert = pos_vert;
-      prev_pos_horz = pos_horz;
-
-      Serial.println();
     }
   }
 }
