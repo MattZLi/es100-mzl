@@ -227,36 +227,6 @@ void startAdv(void)
 // Main loop, measure from all 4 channels forever
 //
 void loop() {
-  // Send character over BLE
-
-  // Only send KeyRelease if previously pressed to avoid sending
-  // multiple keyRelease reports (that consume memory and bandwidth)
-  if ( hasKeyPressed )
-  {
-    hasKeyPressed = false;
-    blehid.keyRelease();
-    
-    // Delay a bit after a report
-    delay(5);
-  }
-    
-  if (Serial.available())
-  {
-    char ch = (char) Serial.read();
-
-    // echo
-    Serial.write(ch); 
-
-    blehid.keyPress(ch);
-    hasKeyPressed = true;
-    
-    // Delay a bit after a report
-    delay(5);
-  }
-
-  // Request CPU to enter low-power mode until an event/interrupt occurs
-  waitForEvent(); 
-
 
   uint16_t value = 0;             // var to hold measurement
   write16(FDC_CONFIG, 0x0DF0);    // trigger all 4 measurements
@@ -406,18 +376,21 @@ void read_meas(bool toggle) {
         if (abs(integral_vert) > abs(integral_horz)) { // vertical
           if (integral_vert < down_thresh) {
             Serial.print("D");
+            ble_keypress('D');
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
             integral_horz = (float) 0;
           } else if (integral_vert > up_thresh) {
             Serial.print("U");
+            ble_keypress('U');
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
             integral_horz = (float) 0;
           } else if (integral_vert != 0) {
             Serial.print("T");
+            ble_keypress('T');
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
@@ -426,6 +399,7 @@ void read_meas(bool toggle) {
         } else if (abs(integral_vert) < abs(integral_horz)) { // horizontal
           if (integral_horz < left_thresh) {
             Serial.print("L");
+            ble_keypress('L');
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
@@ -433,6 +407,7 @@ void read_meas(bool toggle) {
 
           } else if (integral_horz > right_thresh) {
             Serial.print("R");
+            ble_keypress('R');
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
@@ -440,6 +415,7 @@ void read_meas(bool toggle) {
 
           } else if (integral_horz != 0) {
             Serial.print("T");
+            ble_keypress('T');
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
@@ -549,6 +525,19 @@ void set_keyboard_led(uint8_t led_bitmap)
   }
 }
 
-// void ble_keypress(char ch) {
-
-// }
+void ble_keypress(char ch) {
+  blehid.keyPress(ch);
+    hasKeyPressed = true;
+    
+    // Delay a bit after a report
+    delay(5);
+  
+  if ( hasKeyPressed )
+  {
+    hasKeyPressed = false;
+    blehid.keyRelease();
+    
+    // Delay a bit after a report
+    delay(5);
+  }
+}
