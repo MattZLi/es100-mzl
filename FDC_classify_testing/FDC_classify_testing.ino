@@ -6,130 +6,110 @@
 */
 
 //#include <stdio.h>
-#include <Wire.h>   // Include the I2C communications "Wire" library (Arduino IDE supplied)
+#include <Wire.h>       // Include the I2C communications "Wire" library (Arduino IDE supplied)
 #include <QueueArray.h> // Include library for queues
-
-#include <bluefruit.h> // Bluetooth by Adafruit
+#include <bluefruit.h>  // Bluetooth by Adafruit
 
 BLEDis bledis;
 BLEHidAdafruit blehid;
 
 bool hasKeyPressed = false;
 
-#define INT_MAX 10000;
+#define FLOAT_MAX 10000.
 
 //*****************************************************************************************
 // Initialize CONSTANTS and declare some global Variables
 //
-uint8_t I2C_ADDR     = 0x50; // FDC1004 Hardcoded I2C addr
-uint8_t Pointer;             // Pointer to Select which Register within FDC1004 to access
-uint8_t NumSens      = 0;    // Number of FDC1004 on I2C Mux
+uint8_t I2C_ADDR = 0x50; // FDC1004 Hardcoded I2C addr
+uint8_t Pointer;         // Pointer to Select which Register within FDC1004 to access
+uint8_t NumSens = 0;     // Number of FDC1004 on I2C Mux
 
 // FDC Register Addresses (Select using Pointer)
 //
-uint8_t FDC_DEV_ID   = 0xFE; // Pointer to Device_ID Register        Read Only = 0x5449
-uint8_t FDC_MAN_ID   = 0xFF; // Pointer to Manufacturer_ID Register  Read Only = 0x1004
+uint8_t FDC_DEV_ID = 0xFE; // Pointer to Device_ID Register        Read Only = 0x5449
+uint8_t FDC_MAN_ID = 0xFF; // Pointer to Manufacturer_ID Register  Read Only = 0x1004
 
-uint8_t FDC_CONFIG   = 0x0C; // Pointer to Overall Measurement Configuration Register
-uint8_t FDC_CONM1    = 0x08; // Pointer to set Measurement 1's Input wiring Configuration
-uint8_t FDC_CONM2    = 0x09; // Pointer to set Measurement 2's Input wiring Configuration
-uint8_t FDC_CONM3    = 0x0A; // Pointer to set Measurement 3's Input wiring Configuration
-uint8_t FDC_CONM4    = 0x0B; // Pointer to set Measurement 4's Input wiring Configuration
+uint8_t FDC_CONFIG = 0x0C; // Pointer to Overall Measurement Configuration Register
+uint8_t FDC_CONM1 = 0x08;  // Pointer to set Measurement 1's Input wiring Configuration
+uint8_t FDC_CONM2 = 0x09;  // Pointer to set Measurement 2's Input wiring Configuration
+uint8_t FDC_CONM3 = 0x0A;  // Pointer to set Measurement 3's Input wiring Configuration
+uint8_t FDC_CONM4 = 0x0B;  // Pointer to set Measurement 4's Input wiring Configuration
 
-uint8_t FDC_RD_M[]   = {1, 0, 3, 2, 5, 4, 7, 6}; // Addr's to read meas. value from (MSB 1st)
-
-bool    toggle       = true;
-float   gain         = (15.0) / (8388608.0);  // Nominal Gain in units of (pf / count)
+bool toggle = true;
+float gain = (15.0) / (8388608.0); // Nominal Gain in units of (pf / count)
 
 // define length of queue
 int queue_length = 5;
 
-QueueArray <float> mag_queue;
+QueueArray<float> mag_queue;
 
 // raw capacitance values
-float capA = (float) 0.0;
-float capB = (float) 0.0;
-float capC = (float) 0.0;
-float capD = (float) 0.0;
+float capacitances[] = {0., 0., 0., 0.};
+;
 
 // magnitude and threshold
-float mag = (float) 0.0;
+float mag = (float)0.0;
 float mag_threshold = 3.5;
 
-float filt_mag = (float) 0.0;
-float abs_mag = (float) 0.0;
+float filt_mag = (float)0.0;
+float abs_mag = (float)0.0;
 
 // min and max, used to normalize caps
-float minA = (float) INT_MAX;
-float maxA = (float) 0.0;
-float minB = (float) INT_MAX;
-float maxB = (float) 0.0;
-float minC = (float) INT_MAX;
-float maxC = (float) 0.0;
-float minD = (float) INT_MAX;
-float maxD = (float) 0.0;
+float mins[] = {FLOAT_MAX, FLOAT_MAX, FLOAT_MAX, FLOAT_MAX};
+;
+float maxes[] = {0., 0., 0., 0.};
 
 // timer to track when to refresh min/max
 unsigned long last_t = 0;
-
 unsigned long last_print = 0;
 
-// buffer for previous min/mix
-float temp_minA = (float) INT_MAX;
-float temp_maxA = (float) 0.0;
-float temp_minB = (float) INT_MAX;
-float temp_maxB = (float) 0.0;
-float temp_minC = (float) INT_MAX;
-float temp_maxC = (float) 0.0;
-float temp_minD = (float) INT_MAX;
-float temp_maxD = (float) 0.0;
+// buffer for previous min/max
+float temp_mins[] = {FLOAT_MAX, FLOAT_MAX, FLOAT_MAX, FLOAT_MAX};
+;
+float temp_maxes[] = {0., 0., 0., 0.};
 
 // normalized
-float normA = (float) 0.0;
-float normB = (float) 0.0;
-float normC = (float) 0.0;
-float normD = (float) 0.0;
+float norms[] = {0., 0., 0., 0.};
 
 // vertical position tracking
-float normAC = (float) 0.0;
-float normBD = (float) 0.0;
+float normAC = 0.0;
+float normBD = 0.0;
 
-float pos_vert = (float) 0.0;
-float prev_pos_vert = (float) 0.0;
+float pos_vert = 0.0;
+float prev_pos_vert = 0.0;
 
-float mag_vert = (float) 0.0;
+float mag_vert = 0.0;
 
-float deriv_sum_vert = (float) 0.0;
-float integral_vert = (float) 0.0;
-
+float deriv_sum_vert = 0.0;
+float integral_vert = 0.0;
 
 // horizontal position tracking
-float normAB = (float) 0.0;
-float normCD = (float) 0.0;
+float normAB = 0.0;
+float normCD = 0.0;
 
-float pos_horz = (float) 0.0;
-float prev_pos_horz = (float) 0.0;
+float pos_horz = 0.0;
+float prev_pos_horz = 0.0;
 
-float mag_horz = (float) 0.0;
+float mag_horz = 0.0;
 
-float deriv_sum_horz = (float) 0.0;
-float integral_horz = (float) 0.0;
+float deriv_sum_horz = 0.0;
+float integral_horz = 0.0;
 
 // thresholds for directions
 float down_thresh = -0.4;
 float up_thresh = 0.4;
 float left_thresh = -0.4;
-float right_thresh = 0.4; 
+float right_thresh = 0.4;
 
 // ****************************************************************************************
 // Initialize FDC1004 device
 //
-void setup() {
-  Wire.begin();              // join i2c bus (address optional for master)
-  Serial.begin(115200);      // start serial communication at 115200 bps
+void setup()
+{
+  Wire.begin();         // join i2c bus (address optional for master)
+  Serial.begin(115200); // start serial communication at 115200 bps
 
-  // Set up I2C for the FDC1004
-  write16(FDC_CONFIG, 0x8000);  // Issue Reset Command to chip
+  write16(FDC_CONFIG, 0x8000); // Issue Reset Command to chip
 
   // Setup the MEASx Registers for single ended measurements, CINx to MEASx
   //
@@ -143,15 +123,13 @@ void setup() {
   //     Repeating,
   //     all 4 MEASx's enabled.
   //
-  write16(FDC_CONFIG, 0x0DF0);      //D = 400Hz, 5 = 100Hz
-  
+  write16(FDC_CONFIG, 0x0DF0); //D = 400Hz, 5 = 100Hz
+
   // enqueue each queue full of 0s
-  for (int i = 0; i < queue_length; i++){
+  for (int i = 0; i < queue_length; i++)
+  {
     mag_queue.enqueue(0);
   }
-
-  // delay(10000);
-
   // Set up BLE
   Bluefruit.begin();
   // Set max power. Accepted values are: -40, -30, -20, -16, -12, -8, -4, 0, 4
@@ -162,46 +140,277 @@ void setup() {
   bledis.setManufacturer("Adafruit Industries");
   bledis.setModel("Bluefruit Feather 52");
   bledis.begin();
-
-  /* Start BLE HID
-   * Note: Apple requires BLE device must have min connection interval >= 20m
-   * ( The smaller the connection interval the faster we could send data).
-   * However for HID and MIDI device, Apple could accept min connection interval 
-   * up to 11.25 ms. Therefore BLEHidAdafruit::begin() will try to set the min and max
-   * connection interval to 11.25  ms and 15 ms respectively for best performance.
-   */
   blehid.begin();
 
   // Set callback for set LED from central
   blehid.setKeyboardLedCallback(set_keyboard_led);
 
-  /* Set connection interval (min, max) to your perferred value.
-   * Note: It is already set by BLEHidAdafruit::begin() to 11.25ms - 15ms
-   * min = 9*1.25=11.25 ms, max = 12*1.25= 15 ms 
-   */
-  /* Bluefruit.setConnInterval(9, 12); */
-
   // Set up and start advertising
   startAdv();
-
-  delay(10000);
-  blehid.keyPress('H');
+  delay(3000);
 }
 
-// helper function for BLE
+// *********************************************************************
+// Main loop, measure from all 4 channels forever
+//
+void loop()
+{
+  write16(FDC_CONFIG, 0x0DF0); // trigger all 4 measurements
+  write16(FDC_CONFIG, 0x0DF0); // trigger all 4 measurements
+  delay(3 * 4);                // wait for all 4 measurements to complete
+  // check if the measurements are ready
+  uint32_t done;
+  do
+  {
+    uint32_t state = read16(FDC_CONFIG);
+    done = (state & 0xF);
+  } while (done != 0xF);
+  read_meas();
+}
+
+// **************************************************************
+// Functions
+
+// ************** Read in all 4 measurements **********************
+void read_meas()
+{
+  uint32_t val = 0; // 32 bit binary measurement (only 24 bits used)
+  uint32_t msb = 0; // temp storage of measurement's 16 bit MSByte Resigister
+  uint32_t lsb = 0; // temp storage of measurement's 16 bit LSByte Resigister
+  float cap = 0;    // floating point value of measured capacitance (in pf)
+
+  int j = 0;
+  for (int i = 0; i <= 3; i++)
+  {
+    msb = read16(j++);              // MEASj MSB
+    lsb = read16(j++);              // MEASj LSB
+    val = ((msb << 16) + lsb) >> 8; // 24 bit combined MSB and LSB
+    cap = (float)val * gain;        // convert to pf
+
+    
+    //      Serial.print(cap);
+    //      Serial.print(" ");    // needed to delienate between next series
+    // add measurements to buffer for each MEASx
+    capacitances[i] = cap;
+
+    mins[i] = min(mins[i], capacitances[i]);
+    maxes[i] = max(maxes[i], capacitances[i]);
+    temp_mins[i] = min(temp_mins[i], capacitances[i]);
+    temp_maxes[i] = max(temp_maxes[i], capacitances[i]);
+
+    if (maxes[i] <= mins[i])
+    {
+      norms[i] = 0;
+    }
+    else
+    {
+      norms[i] = (capacitances[i] - mins[i]) / (maxes[sensor('d')] - mins[sensor('d')]);
+    }
+  }
+  // unsigned long current_t = millis();
+  // if ((current_t - last_print) > 1000)
+  // {
+  //   graphCaps();
+  // }
+
+  // calculate 2-dimensional position
+  // A (-1, 1); B (-1, -1); C (1, 1); D(1, -1)
+  pos_horz = (-norms[sensor('a')] - norms[sensor('b')] + norms[sensor('c')] + norms[sensor('d')]) / 2.0;
+  pos_vert = (norms[sensor('a')] - norms[sensor('b')] + norms[sensor('c')] - norms[sensor('d')]) / 2.0;
+
+  // low-pass filter absolute magnitude of vertical sensors
+  abs_mag = capacitances[sensor('a')] + capacitances[sensor('b')] + capacitances[sensor('c')] + capacitances[sensor('d')];
+
+  filt_mag = filt_mag - mag_queue.dequeue() + abs_mag;
+  mag_queue.enqueue(abs_mag);
+
+  // normalized magnitude of vertical sensors
+  normAC = max(norms[sensor('a')], norms[sensor('c')]);
+  normBD = max(norms[sensor('b')], norms[sensor('d')]);
+  mag_vert = (normAC + normBD) / 2.0;
+
+  // normalized magnitude of horizontal sensors
+  normAB = max(norms[sensor('a')], norms[sensor('b')]);
+  normCD = max(norms[sensor('c')], norms[sensor('d')]);
+  mag_horz = (normAB + normCD) / 2.0;
+
+  // classify direction of gesture
+  if ((filt_mag / (float)queue_length) > mag_threshold)
+  {
+    // vertical component
+    deriv_sum_vert += mag_vert * (pos_vert - prev_pos_vert);
+    integral_vert += deriv_sum_vert;
+    // horizontal component
+    deriv_sum_horz += mag_horz * (pos_horz - prev_pos_horz);
+    integral_horz += deriv_sum_horz;
+  }
+  else
+  {
+    bool vertical = abs(integral_vert) > abs(integral_horz);
+    if (vertical && integral_vert < down_thresh)
+    {
+      swipe('D');
+    }
+    else if (vertical && integral_vert > up_thresh)
+    {
+      swipe('U');
+    }
+    else if (!vertical && integral_horz < left_thresh)
+    {
+      swipe('L');
+    }
+    else if (!vertical && integral_horz > right_thresh)
+    {
+      swipe('R');
+    }
+    else if (integral_vert != 0 && integral_horz != 0)
+    {
+      swipe('T');
+    }
+  }
+
+  // refresh mins and maxes every 10 seconds
+  unsigned long curr_t = millis();
+  if ((curr_t - last_t) > 10000)
+  {
+    for (size_t i = 0; i < 4; i++)
+    {
+      mins[i] = (mins[i] + temp_mins[i]) / 2.0;
+      maxes[i] = (maxes[i] + temp_maxes[i]) / 2.0;
+      temp_mins[i] = FLOAT_MAX;
+      temp_maxes[i] = 0.;
+    }
+    last_t = curr_t;
+  }
+  prev_pos_vert = pos_vert;
+  prev_pos_horz = pos_horz;
+}
+
+// **********  Read/Write 16 bit value from an FDC1004 register *******************
+
+unsigned int read16(uint8_t Pointer)
+{
+  uint16_t value;                   // declare var to hold read reg value
+  Wire.beginTransmission(I2C_ADDR); // Que up I2C 7 bit addr and R/W* bit = R
+  Wire.write(Pointer);              // Que up Pointer addr
+  Wire.endTransmission();           // Send the Addresses
+
+  Wire.requestFrom(I2C_ADDR, 2); // Que Request for 2 bytes from I2C addr slave
+  value = Wire.read();           // Read in MSByte byte
+  value <<= 8;                   // shift up to MSByte in 16 bit value
+  value |= Wire.read();          // Read in LSByte, OR into 16 bit value
+  return value;
+}
+
+void write16(uint8_t Pointer, uint16_t data)
+{
+  Wire.beginTransmission(I2C_ADDR); // Que up I2C 7 bit addr and R/W* bit = W*
+  Wire.write(Pointer);              // Que up Pointer addr
+  Wire.write((uint8_t)(data >> 8)); // Que up MSbyte of 16 bit reg value
+  Wire.write((uint8_t)data);        // Que up LSbyte of 16 bit reg value
+  Wire.endTransmission();           // Send Queued bytes
+}
+
+void QueueCopy(QueueArray<int> *A, QueueArray<int> *B)
+{
+  QueueArray<int> temp;
+
+  while (!A->isEmpty())
+  {
+    temp.enqueue(A->dequeue());
+  }
+  while (!temp.isEmpty())
+  {
+    A->enqueue(temp.front());
+    B->enqueue(temp.dequeue());
+  }
+}
+
+bool QueueEqual(QueueArray<int> *A, QueueArray<int> *B)
+{
+  QueueArray<int> tempA;
+  QueueArray<int> tempB;
+
+  QueueCopy(A, &tempA);
+  QueueCopy(B, &tempB);
+
+  while (!tempA.isEmpty() && !tempB.isEmpty())
+  {
+    if (tempA.dequeue() != tempB.dequeue())
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+int sensor(char c)
+{
+  switch (c)
+  {
+  case 'a':
+    return 1;
+  case 'b':
+    return 2;
+  case 'c':
+    return 3;
+  case 'd':
+    return 0;
+  default:
+    return -1;
+  }
+}
+
+void swipe(char dir)
+{
+  blehid.keyPress(dir);
+  delay(50);
+  blehid.keyRelease();
+  // Serial.print({dir});
+  // Serial.print(" ");
+  // Serial.print(integral_horz);
+  // Serial.print(" ");
+  // Serial.print(integral_vert);
+  // Serial.print(" ");
+  // Serial.println();
+  deriv_sum_vert = 0.;
+  integral_vert = 0.;
+  deriv_sum_horz = 0.;
+  integral_horz = 0.;
+}
+
+void graphCaps()
+{
+  // for (size_t i = 0; i < 4; i++)
+  // {
+  //   Serial.print(capacitances[i]);
+  //   Serial.print(" ");
+  // }
+  // Serial.println();
+  for (size_t i = 0; i < 4; i++)
+  {
+    char strcap[10];
+    float_to_str(strcap, 10, norms[i]);
+    blehid.keySequence(strcap, 50);
+    blehid.keyPress(' ');
+    delay(50);
+    blehid.keyRelease();
+  }
+}
+
 void startAdv(void)
-{  
+{
   // Advertising packet
   Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
   Bluefruit.Advertising.addTxPower();
   Bluefruit.Advertising.addAppearance(BLE_APPEARANCE_HID_KEYBOARD);
-  
+
   // Include BLE HID service
   Bluefruit.Advertising.addService(blehid);
 
   // There is enough room for the dev name in the advertising packet
   Bluefruit.Advertising.addName();
-  
+
   /* Start Advertising
    * - Enable auto advertising if disconnected
    * - Interval:  fast mode = 20 ms, slow mode = 152.5 ms
@@ -212,316 +421,9 @@ void startAdv(void)
    * https://developer.apple.com/library/content/qa/qa1931/_index.html   
    */
   Bluefruit.Advertising.restartOnDisconnect(true);
-  Bluefruit.Advertising.setInterval(32, 244);    // in unit of 0.625 ms
-  Bluefruit.Advertising.setFastTimeout(30);      // number of seconds in fast mode
-  Bluefruit.Advertising.start(0);                // 0 = Don't stop advertising after n seconds
-}
-
-// *********************************************************************
-// Main loop, measure from all 4 channels forever
-//
-void loop() {
-  uint16_t value = 0;             // var to hold measurement
-  write16(FDC_CONFIG, 0x0DF0);    // trigger all 4 measurements
-  delay(3 * 4);                   // wait for all 4 measurements to complete
-  // check if the measurements are ready
-  uint32_t done;
-  do {
-    uint32_t state = read16(FDC_CONFIG);
-    done = (state & 0xF);
-  }
-  while (done != 0xF);
-  read_meas(toggle);
-
-  delay(2000);
-}
-
-// **************************************************************
-// Functions
-
-// ************** Read in all 4 measurements **********************
-void read_meas(bool toggle) {
-  uint32_t val = 0;    // 32 bit binary measurement (only 24 bits used)
-  uint32_t msb = 0;    // temp storage of measurement's 16 bit MSByte Resigister
-  uint32_t lsb = 0;    // temp storage of measurement's 16 bit LSByte Resigister
-  float    cap = 0;    // floating point value of measured capacitance (in pf)
-
-  int j = 0;
-  for (int i = 0; i <= 3; i++) {
-    lsb = read16(FDC_RD_M[j++]);     // MEASj LSB
-    msb = read16(FDC_RD_M[j++]);     // MEASj MSB
-    val = ((msb << 16) + lsb) >> 8;  // 24 bit combined MSB and LSB
-    cap = (float)val * gain;         // convert to pf
-    if (toggle) {
-
-      char strcap [10];
-      // add measurements to buffer for each MEASx
-      switch (i) {
-        case 0:
-          
-          capD = cap;
-          // blehid.keySequence("cap0 ", 10);
-
-          minD = min(minD, capD);
-          maxD = max(maxD, capD);
-          temp_minD = min(temp_minD, capD);
-          temp_maxD = max(temp_maxD, capD);
-
-          if (maxD <= minD) {
-            normD = 0;
-          } else {
-            normD = (capD - minD)/(maxD - minD);
-          }
-          
-          break;
-        case 1:
-          // record capacitance of sensor A
-          capA = cap;
-          // blehid.keySequence("cap1 ", 10);
-          // float_to_str(strcap, 10, cap);
-          // blehid.keySequence(strcap, 10);
-          // blehid.keyPress(' ');
-          
-          // dynamically sets min and max
-          minA = min(minA, capA);
-          maxA = max(maxA, capA);
-          // records min and max value over refresh period
-          temp_minA = min(temp_minA, capA);
-          temp_maxA = max(temp_maxA, capA);
-          // normalize cap value between 0 and 1
-          if (maxA <= minA) {
-            normA = 0;
-          } else {
-            normA = (capA - minA)/(maxA - minA);
-          }
-
-          break;
-        case 2:
-          capB = cap;
-          // blehid.keySequence("cap2 ", 10);
-          
-          // float_to_str(strcap, 10, cap);
-          // blehid.keySequence(strcap, 10);
-          // blehid.keyPress(' ');
-          minB = min(minB, capB);
-          maxB = max(maxB, capB);
-          temp_minB = min(temp_minB, capB);
-          temp_maxB = max(temp_maxB, capB);
-
-          if (maxB <= minB) {
-            normB = 0;
-          } else {
-            normB = (capB - minB)/(maxB - minB);
-          }
-
-          break;
-        case 3:
-          capC = cap;
-          // blehid.keySequence("cap3 ", 10);
-          
-          // float_to_str(strcap, 10, cap);
-          // blehid.keySequence(strcap, 10);
-          // blehid.keyPress(' ');
-          minC = min(minC, capC);
-          maxC = max(maxC, capC);
-          temp_minC = min(temp_minC, capC);
-          temp_maxC = max(temp_maxC, capC);
-
-          if (maxC <= minC) {
-            normC = 0;
-          } else {
-            normC = (capC - minC)/(maxC - minC);
-          }
-
-          break;
-        default:
-          break;
-      }
-
-      // calculate 2-dimensional position
-      // A (-1, 1); B (-1, -1); C (1, 1); D(1, -1)
-      pos_horz = (- normA - normB + normC + normD)/2.0;
-      pos_vert = (normA - normB + normC - normD)/2.0;
-
-      // low-pass filter absolute magnitude of vertical sensors
-      abs_mag = capA + capB + capC + capD;
-
-      filt_mag = filt_mag - mag_queue.dequeue() + abs_mag;
-      mag_queue.enqueue(abs_mag);
-
-      
-
-      // normalized magnitude of vertical sensors
-      normAC = max(normA, normC);
-      normBD = max(normB, normD);
-      mag_vert = (normAC + normBD)/2.0;
-
-      // normalized magnitude of horizontal sensors
-      normAB = max(normA, normB);
-      normCD = max(normC, normD);
-      mag_horz = (normAB + normCD)/2.0;
-
-      // classify direction of gesture
-      if ((filt_mag/(float) queue_length) > mag_threshold) {
-        // vertical component
-        deriv_sum_vert += mag_vert*(pos_vert - prev_pos_vert);
-        integral_vert += deriv_sum_vert;
-        // horizontal component
-        deriv_sum_horz += mag_horz*(pos_horz - prev_pos_horz);
-        integral_horz += deriv_sum_horz;
-      } else {
-        if (abs(integral_vert) > abs(integral_horz)) { // vertical
-          if (integral_vert < down_thresh) {
-            // blehid.keyPress('D');
-            deriv_sum_vert = (float) 0;
-            integral_vert = (float) 0;
-            deriv_sum_horz = (float) 0;
-            integral_horz = (float) 0;
-          } else if (integral_vert > up_thresh) {
-            // blehid.keyPress('U');
-            deriv_sum_vert = (float) 0;
-            integral_vert = (float) 0;
-            deriv_sum_horz = (float) 0;
-            integral_horz = (float) 0;
-          } else if (integral_vert != 0) {
-            // blehid.keyPress('T');
-            deriv_sum_vert = (float) 0;
-            integral_vert = (float) 0;
-            deriv_sum_horz = (float) 0;
-            integral_horz = (float) 0;
-          }
-        } else if (abs(integral_vert) < abs(integral_horz)) { // horizontal
-          if (integral_horz < left_thresh) {
-            // blehid.keyPress('L');
-            deriv_sum_vert = (float) 0;
-            integral_vert = (float) 0;
-            deriv_sum_horz = (float) 0;
-            integral_horz = (float) 0;
-
-          } else if (integral_horz > right_thresh) {
-            // blehid.keyPress('R');
-            deriv_sum_vert = (float) 0;
-            integral_vert = (float) 0;
-            deriv_sum_horz = (float) 0;
-            integral_horz = (float) 0;
-
-          } else if (integral_horz != 0) {
-            // blehid.keyPress('T');
-            deriv_sum_vert = (float) 0;
-            integral_vert = (float) 0;
-            deriv_sum_horz = (float) 0;
-            integral_horz = (float) 0;
-          }
-        }
-      }
-
-      unsigned long current_t = millis();
-      if ((current_t - last_print) > 1000) {
-        float_to_str(strcap, 10, normD);
-        blehid.keySequence(strcap, 50);
-        blehid.keyPress(' ');
-        delay(50);
-        blehid.keyRelease();
-
-        float_to_str(strcap, 10, normA);
-        blehid.keySequence(strcap, 50);
-        blehid.keyPress(' ');
-        delay(50);
-        blehid.keyRelease();
-
-        float_to_str(strcap, 10, normB);
-        blehid.keySequence(strcap, 50);
-        blehid.keyPress(' ');
-        delay(50);
-        blehid.keyRelease();
-
-        float_to_str(strcap, 10, normC);
-        blehid.keySequence(strcap, 50);
-        blehid.keyPress(' ');
-        delay(50);
-        blehid.keyRelease();
-
-        last_print = current_t;
-      }
-
-      // refresh mins and maxes every 10 seconds
-      unsigned long curr_t = millis();
-      if ((curr_t - last_t) > 10000) {
-        last_t = curr_t;
-        minA = (minA + temp_minA)/2.0;
-        maxA = (maxA + temp_maxA)/2.0;
-        minB = (minB + temp_minB)/2.0;
-        maxB = (maxB + temp_maxB)/2.0;
-        minC = (minC + temp_minC)/2.0;
-        maxC = (maxC + temp_maxC)/2.0;
-        minD = (minD + temp_minD)/2.0;
-        maxD = (maxD + temp_maxD)/2.0;
-
-        temp_minA = (float) INT_MAX;
-        temp_maxA = (float) 0.0;
-        temp_minB = (float) INT_MAX;
-        temp_maxB = (float) 0.0;
-        temp_minC = (float) INT_MAX;
-        temp_maxC = (float) 0.0;
-        temp_minD = (float) INT_MAX;
-        temp_maxD = (float) 0.0;
-      }
-
-      prev_pos_vert = pos_vert;
-      prev_pos_horz = pos_horz;
-
-    }
-  }
-}
-
-// **********  Read/Write 16 bit value from an FDC1004 register *******************
-
-unsigned int read16(uint8_t Pointer) {
-  uint16_t value;                       // declare var to hold read reg value
-  Wire.beginTransmission(I2C_ADDR);     // Que up I2C 7 bit addr and R/W* bit = R
-  Wire.write(Pointer);                  // Que up Pointer addr
-  Wire.endTransmission();               // Send the Addresses
-
-  Wire.requestFrom(I2C_ADDR, 2);        // Que Request for 2 bytes from I2C addr slave
-  value = Wire.read();                  // Read in MSByte byte
-  value <<= 8;                          // shift up to MSByte in 16 bit value
-  value |= Wire.read();                 // Read in LSByte, OR into 16 bit value
-  return value;
-}
-
-void write16(uint8_t Pointer, uint16_t data) {
-  Wire.beginTransmission(I2C_ADDR);    // Que up I2C 7 bit addr and R/W* bit = W*
-  Wire.write(Pointer);                 // Que up Pointer addr
-  Wire.write((uint8_t) (data >> 8));   // Que up MSbyte of 16 bit reg value
-  Wire.write((uint8_t) data);          // Que up LSbyte of 16 bit reg value
-  Wire.endTransmission();              // Send Queued bytes
-}
-
-void QueueCopy(QueueArray <int>* A, QueueArray <int>* B) {
-  QueueArray <int> temp;
-
-  while (!A->isEmpty()) {
-    temp.enqueue(A->dequeue());
-  }
-  while (!temp.isEmpty()) {
-    A->enqueue(temp.front());
-    B->enqueue(temp.dequeue());
-  }
-}
-
-bool QueueEqual(QueueArray <int>* A, QueueArray <int>* B) {
-  QueueArray <int> tempA;
-  QueueArray <int> tempB;
-
-  QueueCopy(A, &tempA);
-  QueueCopy(B, &tempB);
-  
-  while (!tempA.isEmpty() && !tempB.isEmpty()) {
-    if (tempA.dequeue() != tempB.dequeue()) {
-      return false;
-    }
-  }
-  return true;
+  Bluefruit.Advertising.setInterval(32, 244); // in unit of 0.625 ms
+  Bluefruit.Advertising.setFastTimeout(30);   // number of seconds in fast mode
+  Bluefruit.Advertising.start(0);             // 0 = Don't stop advertising after n seconds
 }
 
 /**
