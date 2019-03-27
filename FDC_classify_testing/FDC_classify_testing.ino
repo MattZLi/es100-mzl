@@ -336,8 +336,33 @@ void read_meas(bool toggle) {
           break;
       }
 
-      unsigned long curr_t = millis();
-      if ((curr_t - last_print) > 1000) {
+      // calculate 2-dimensional position
+      // A (-1, 1); B (-1, -1); C (1, 1); D(1, -1)
+      pos_horz = (- normA - normB + normC + normD)/2.0;
+      pos_vert = (normA - normB + normC - normD)/2.0;
+
+      // low-pass filter absolute magnitude of vertical sensors
+      abs_mag = capA + capB + capC + capD;
+
+      filt_mag = filt_mag - mag_queue.dequeue() + abs_mag;
+      mag_queue.enqueue(abs_mag);
+
+      
+
+      // normalized magnitude of vertical sensors
+      normAC = max(normA, normC);
+      normBD = max(normB, normD);
+      mag_vert = (normAC + normBD)/2.0;
+
+      // normalized magnitude of horizontal sensors
+      normAB = max(normA, normB);
+      normCD = max(normC, normD);
+      mag_horz = (normAB + normCD)/2.0;
+
+
+
+      unsigned long current_t = millis();
+      if ((current_t - last_print) > 1000) {
         float_to_str(strcap, 10, normD);
         blehid.keySequence(strcap, 50);
         blehid.keyPress(' ');
@@ -354,8 +379,34 @@ void read_meas(bool toggle) {
         blehid.keySequence(strcap, 50);
         blehid.keyPress(' ');
 
-        last_print = curr_t;
+        last_print = current_t;
       }
+
+      // refresh mins and maxes every 10 seconds
+      unsigned long curr_t = millis();
+      if ((curr_t - last_t) > 10000) {
+        last_t = curr_t;
+        minA = (minA + temp_minA)/2.0;
+        maxA = (maxA + temp_maxA)/2.0;
+        minB = (minB + temp_minB)/2.0;
+        maxB = (maxB + temp_maxB)/2.0;
+        minC = (minC + temp_minC)/2.0;
+        maxC = (maxC + temp_maxC)/2.0;
+        minD = (minD + temp_minD)/2.0;
+        maxD = (maxD + temp_maxD)/2.0;
+
+        temp_minA = (float) INT_MAX;
+        temp_maxA = (float) 0.0;
+        temp_minB = (float) INT_MAX;
+        temp_maxB = (float) 0.0;
+        temp_minC = (float) INT_MAX;
+        temp_maxC = (float) 0.0;
+        temp_minD = (float) INT_MAX;
+        temp_maxD = (float) 0.0;
+      }
+
+      prev_pos_vert = pos_vert;
+      prev_pos_horz = pos_horz;
 
     }
   }
