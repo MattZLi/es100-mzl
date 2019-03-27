@@ -25,12 +25,11 @@ uint8_t NumSens = 0;     // Number of FDC1004 on I2C Mux
 uint8_t FDC_DEV_ID = 0xFE; // Pointer to Device_ID Register        Read Only = 0x5449
 uint8_t FDC_MAN_ID = 0xFF; // Pointer to Manufacturer_ID Register  Read Only = 0x1004
 
-uint8_t FDC_CONFIG = 0x0C;                     // Pointer to Overall Measurement Configuration Register
-uint8_t FDC_CONM1 = 0x08;                      // Pointer to set Measurement 1's Input wiring Configuration
-uint8_t FDC_CONM2 = 0x09;                      // Pointer to set Measurement 2's Input wiring Configuration
-uint8_t FDC_CONM3 = 0x0A;                      // Pointer to set Measurement 3's Input wiring Configuration
-uint8_t FDC_CONM4 = 0x0B;                      // Pointer to set Measurement 4's Input wiring Configuration
-uint8_t FDC_RD_M[] = {1, 0, 3, 2, 5, 4, 7, 6}; // Addr's to read meas. value from (MSB 1st)
+uint8_t FDC_CONFIG = 0x0C; // Pointer to Overall Measurement Configuration Register
+uint8_t FDC_CONM1 = 0x08;  // Pointer to set Measurement 1's Input wiring Configuration
+uint8_t FDC_CONM2 = 0x09;  // Pointer to set Measurement 2's Input wiring Configuration
+uint8_t FDC_CONM3 = 0x0A;  // Pointer to set Measurement 3's Input wiring Configuration
+uint8_t FDC_CONM4 = 0x0B;  // Pointer to set Measurement 4's Input wiring Configuration
 
 bool toggle = true;
 float gain = (15.0) / (8388608.0); // Nominal Gain in units of (pf / count)
@@ -133,18 +132,24 @@ void setup()
 //
 void loop()
 {
-  uint16_t value = 0;          // var to hold measurement
+  write16(FDC_CONFIG, 0x0DF0); // trigger all 4 measurements
   write16(FDC_CONFIG, 0x0DF0); // trigger all 4 measurements
   delay(3 * 4);                // wait for all 4 measurements to complete
-  read_meas(toggle);           // read the 4 measurements
-  toggle = !toggle;            // for some reasons every other trigger is bogus
+  // check if the measurements are ready
+  uint32_t done;
+  do
+  {
+    uint32_t state = read16(FDC_CONFIG);
+    done = (state & 0xF);
+  } while (done != 0xF);
+  read_meas();
 }
 
 // **************************************************************
 // Functions
 
 // ************** Read in all 4 measurements **********************
-void read_meas(bool toggle)
+void read_meas()
 {
   uint32_t val = 0; // 32 bit binary measurement (only 24 bits used)
   uint32_t msb = 0; // temp storage of measurement's 16 bit MSByte Resigister
@@ -154,103 +159,103 @@ void read_meas(bool toggle)
   int j = 0;
   for (int i = 0; i <= 3; i++)
   {
-    lsb = read16(FDC_RD_M[j++]);    // MEASj LSB
-    msb = read16(FDC_RD_M[j++]);    // MEASj MSB
+    msb = read16(j++);              // MEASj MSB
+    lsb = read16(j++);              // MEASj LSB
     val = ((msb << 16) + lsb) >> 8; // 24 bit combined MSB and LSB
     cap = (float)val * gain;        // convert to pf
-    if (toggle)
+
+    //      Serial.print(cap);
+    //      Serial.print(" ");    // needed to delienate between next series
+    // add measurements to buffer for each MEASx
+    capacitances[i] = cap;
+
+    mins[i] = min(mins[i], capacitances[i]);
+    maxes[i] = max(maxes[i], capacitances[i]);
+    temp_mins[i] = min(temp_mins[i], capacitances[i]);
+    temp_maxes[i] = max(temp_maxes[i], capacitances[i]);
+
+    if (maxes[i] <= mins[i])
     {
-      //      Serial.print(cap);
-      //      Serial.print(" ");    // needed to delienate between next series
-      // add measurements to buffer for each MEASx
-      capacitances[i] = cap;
-
-      mins[i] = min(mins[i], capacitances[i]);
-      maxes[i] = max(maxes[i], capacitances[i]);
-      temp_mins[i] = min(temp_mins[i], capacitances[i]);
-      temp_maxes[i] = max(temp_maxes[i], capacitances[i]);
-
-      if (maxes[i] <= mins[i])
-      {
-        norms[i] = 0;
-      }
-      else
-      {
-        norms[i] = (capacitances[i] - mins[i]) / (maxes[sensor('d')] - mins[sensor('d')]);
-      }
-    }
-    // calculate 2-dimensional position
-    // A (-1, 1); B (-1, -1); C (1, 1); D(1, -1)
-    pos_horz = (-norms[sensor('a')] - norms[sensor('b')] + norms[sensor('c')] + norms[sensor('d')]) / 2.0;
-    pos_vert = (norms[sensor('a')] - norms[sensor('b')] + norms[sensor('c')] - norms[sensor('d')]) / 2.0;
-
-    // low-pass filter absolute magnitude of vertical sensors
-    abs_mag = capacitances[sensor('a')] + capacitances[sensor('b')] + capacitances[sensor('c')] + capacitances[sensor('d')];
-
-    filt_mag = filt_mag - mag_queue.dequeue() + abs_mag;
-    mag_queue.enqueue(abs_mag);
-
-    // normalized magnitude of vertical sensors
-    normAC = max(norms[sensor('a')], norms[sensor('c')]);
-    normBD = max(norms[sensor('b')], norms[sensor('d')]);
-    mag_vert = (normAC + normBD) / 2.0;
-
-    // normalized magnitude of horizontal sensors
-    normAB = max(norms[sensor('a')], norms[sensor('b')]);
-    normCD = max(norms[sensor('c')], norms[sensor('d')]);
-    mag_horz = (normAB + normCD) / 2.0;
-
-    // classify direction of gesture
-    if ((filt_mag / (float)queue_length) > mag_threshold)
-    {
-      // vertical component
-      deriv_sum_vert += mag_vert * (pos_vert - prev_pos_vert);
-      integral_vert += deriv_sum_vert;
-      // horizontal component
-      deriv_sum_horz += mag_horz * (pos_horz - prev_pos_horz);
-      integral_horz += deriv_sum_horz;
+      norms[i] = 0;
     }
     else
     {
-      bool vertical = abs(integral_vert) > abs(integral_horz);
-      if (vertical && integral_vert < down_thresh)
-      {
-        swipe('D');
-      }
-      else if (vertical && integral_vert > up_thresh)
-      {
-        swipe('U');
-      }
-      else if (!vertical && integral_horz < left_thresh)
-      {
-        swipe('L');
-      }
-      else if (!vertical && integral_horz > right_thresh)
-      {
-        swipe('R');
-      }
-      else if (integral_vert != 0 && integral_horz != 0)
-      {
-        swipe('T');
-      }
+      norms[i] = (capacitances[i] - mins[i]) / (maxes[sensor('d')] - mins[sensor('d')]);
     }
-
-    // refresh mins and maxes every 10 seconds
-    unsigned long curr_t = millis();
-    if ((curr_t - last_t) > 10000)
-    {
-      for (size_t i = 0; i < 4; i++)
-      {
-        mins[i] = (mins[i] + temp_mins[i]) / 2.0;
-        maxes[i] = (maxes[i] + temp_maxes[i]) / 2.0;
-        temp_mins[i] = FLOAT_MAX;
-        temp_maxes[i] = 0.;
-      }
-      last_t = curr_t;
-    }
-    prev_pos_vert = pos_vert;
-    prev_pos_horz = pos_horz;
   }
+  graphCaps();
+
+  // calculate 2-dimensional position
+  // A (-1, 1); B (-1, -1); C (1, 1); D(1, -1)
+  pos_horz = (-norms[sensor('a')] - norms[sensor('b')] + norms[sensor('c')] + norms[sensor('d')]) / 2.0;
+  pos_vert = (norms[sensor('a')] - norms[sensor('b')] + norms[sensor('c')] - norms[sensor('d')]) / 2.0;
+
+  // low-pass filter absolute magnitude of vertical sensors
+  abs_mag = capacitances[sensor('a')] + capacitances[sensor('b')] + capacitances[sensor('c')] + capacitances[sensor('d')];
+
+  filt_mag = filt_mag - mag_queue.dequeue() + abs_mag;
+  mag_queue.enqueue(abs_mag);
+
+  // normalized magnitude of vertical sensors
+  normAC = max(norms[sensor('a')], norms[sensor('c')]);
+  normBD = max(norms[sensor('b')], norms[sensor('d')]);
+  mag_vert = (normAC + normBD) / 2.0;
+
+  // normalized magnitude of horizontal sensors
+  normAB = max(norms[sensor('a')], norms[sensor('b')]);
+  normCD = max(norms[sensor('c')], norms[sensor('d')]);
+  mag_horz = (normAB + normCD) / 2.0;
+
+  // classify direction of gesture
+  if ((filt_mag / (float)queue_length) > mag_threshold)
+  {
+    // vertical component
+    deriv_sum_vert += mag_vert * (pos_vert - prev_pos_vert);
+    integral_vert += deriv_sum_vert;
+    // horizontal component
+    deriv_sum_horz += mag_horz * (pos_horz - prev_pos_horz);
+    integral_horz += deriv_sum_horz;
+  }
+  else
+  {
+    bool vertical = abs(integral_vert) > abs(integral_horz);
+    if (vertical && integral_vert < down_thresh)
+    {
+      swipe('D');
+    }
+    else if (vertical && integral_vert > up_thresh)
+    {
+      swipe('U');
+    }
+    else if (!vertical && integral_horz < left_thresh)
+    {
+      swipe('L');
+    }
+    else if (!vertical && integral_horz > right_thresh)
+    {
+      swipe('R');
+    }
+    else if (integral_vert != 0 && integral_horz != 0)
+    {
+      swipe('T');
+    }
+  }
+
+  // refresh mins and maxes every 10 seconds
+  unsigned long curr_t = millis();
+  if ((curr_t - last_t) > 10000)
+  {
+    for (size_t i = 0; i < 4; i++)
+    {
+      mins[i] = (mins[i] + temp_mins[i]) / 2.0;
+      maxes[i] = (maxes[i] + temp_maxes[i]) / 2.0;
+      temp_mins[i] = FLOAT_MAX;
+      temp_maxes[i] = 0.;
+    }
+    last_t = curr_t;
+  }
+  prev_pos_vert = pos_vert;
+  prev_pos_horz = pos_horz;
 }
 
 // **********  Read/Write 16 bit value from an FDC1004 register *******************
@@ -331,15 +336,25 @@ int sensor(char c)
 void swipe(char dir)
 {
   Keyboard.write(dir);
-  Serial.print({dir});
-  Serial.print(" ");
-  Serial.print(integral_horz);
-  Serial.print(" ");
-  Serial.print(integral_vert);
-  Serial.print(" ");
-  Serial.println();
+  // Serial.print({dir});
+  // Serial.print(" ");
+  // Serial.print(integral_horz);
+  // Serial.print(" ");
+  // Serial.print(integral_vert);
+  // Serial.print(" ");
+  // Serial.println();
   deriv_sum_vert = 0.;
   integral_vert = 0.;
   deriv_sum_horz = 0.;
   integral_horz = 0.;
+}
+
+void graphCaps()
+{
+  for (size_t i = 0; i < 4; i++)
+  {
+    Serial.print(capacitances[i]);
+    Serial.print(" ");
+  }
+  Serial.println();
 }
