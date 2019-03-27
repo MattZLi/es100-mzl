@@ -359,7 +359,59 @@ void read_meas(bool toggle) {
       normCD = max(normC, normD);
       mag_horz = (normAB + normCD)/2.0;
 
+      // classify direction of gesture
+      if ((filt_mag/(float) queue_length) > mag_threshold) {
+        // vertical component
+        deriv_sum_vert += mag_vert*(pos_vert - prev_pos_vert);
+        integral_vert += deriv_sum_vert;
+        // horizontal component
+        deriv_sum_horz += mag_horz*(pos_horz - prev_pos_horz);
+        integral_horz += deriv_sum_horz;
+      } else {
+        if (abs(integral_vert) > abs(integral_horz)) { // vertical
+          if (integral_vert < down_thresh) {
+            blehid.keyPress('D');
+            deriv_sum_vert = (float) 0;
+            integral_vert = (float) 0;
+            deriv_sum_horz = (float) 0;
+            integral_horz = (float) 0;
+          } else if (integral_vert > up_thresh) {
+            blehid.keyPress('U');
+            deriv_sum_vert = (float) 0;
+            integral_vert = (float) 0;
+            deriv_sum_horz = (float) 0;
+            integral_horz = (float) 0;
+          } else if (integral_vert != 0) {
+            blehid.keyPress('T');
+            deriv_sum_vert = (float) 0;
+            integral_vert = (float) 0;
+            deriv_sum_horz = (float) 0;
+            integral_horz = (float) 0;
+          }
+        } else if (abs(integral_vert) < abs(integral_horz)) { // horizontal
+          if (integral_horz < left_thresh) {
+            blehid.keyPress('L');
+            deriv_sum_vert = (float) 0;
+            integral_vert = (float) 0;
+            deriv_sum_horz = (float) 0;
+            integral_horz = (float) 0;
 
+          } else if (integral_horz > right_thresh) {
+            blehid.keyPress('R');
+            deriv_sum_vert = (float) 0;
+            integral_vert = (float) 0;
+            deriv_sum_horz = (float) 0;
+            integral_horz = (float) 0;
+
+          } else if (integral_horz != 0) {
+            blehid.keyPress('T');;
+            deriv_sum_vert = (float) 0;
+            integral_vert = (float) 0;
+            deriv_sum_horz = (float) 0;
+            integral_horz = (float) 0;
+          }
+        }
+      }
 
       unsigned long current_t = millis();
       if ((current_t - last_print) > 1000) {
