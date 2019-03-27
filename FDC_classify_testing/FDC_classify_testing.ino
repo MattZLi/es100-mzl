@@ -9,13 +9,14 @@
 #include <Wire.h>       // Include the I2C communications "Wire" library (Arduino IDE supplied)
 #include <QueueArray.h> // Include library for queues
 #include <bluefruit.h>  // Bluetooth by Adafruit
+#define FLOAT_MAX 10000.
+
+#define BLE_ON false
 
 BLEDis bledis;
 BLEHidAdafruit blehid;
 
 bool hasKeyPressed = false;
-
-#define FLOAT_MAX 10000.
 
 //*****************************************************************************************
 // Initialize CONSTANTS and declare some global Variables
@@ -130,24 +131,27 @@ void setup()
   {
     mag_queue.enqueue(0);
   }
-  // Set up BLE
-  Bluefruit.begin();
-  // Set max power. Accepted values are: -40, -30, -20, -16, -12, -8, -4, 0, 4
-  Bluefruit.setTxPower(4);
-  Bluefruit.setName("Bluefruit52");
 
-  // Configure and Start Device Information Service
-  bledis.setManufacturer("Adafruit Industries");
-  bledis.setModel("Bluefruit Feather 52");
-  bledis.begin();
-  blehid.begin();
+  if (BLE_ON)
+  { // Set up BLE
+    Bluefruit.begin();
+    // Set max power. Accepted values are: -40, -30, -20, -16, -12, -8, -4, 0, 4
+    Bluefruit.setTxPower(4);
+    Bluefruit.setName("Bluefruit52");
 
-  // Set callback for set LED from central
-  blehid.setKeyboardLedCallback(set_keyboard_led);
+    // Configure and Start Device Information Service
+    bledis.setManufacturer("Adafruit Industries");
+    bledis.setModel("Bluefruit Feather 52");
+    bledis.begin();
+    blehid.begin();
 
-  // Set up and start advertising
-  startAdv();
-  delay(3000);
+    // Set callback for set LED from central
+    blehid.setKeyboardLedCallback(set_keyboard_led);
+
+    // Set up and start advertising
+    startAdv();
+    delay(3000);
+  }
 }
 
 // *********************************************************************
@@ -187,7 +191,6 @@ void read_meas()
     val = ((msb << 16) + lsb) >> 8; // 24 bit combined MSB and LSB
     cap = (float)val * gain;        // convert to pf
 
-    
     //      Serial.print(cap);
     //      Serial.print(" ");    // needed to delienate between next series
     // add measurements to buffer for each MEASx
@@ -207,11 +210,11 @@ void read_meas()
       norms[i] = (capacitances[i] - mins[i]) / (maxes[sensor('d')] - mins[sensor('d')]);
     }
   }
-  // unsigned long current_t = millis();
-  // if ((current_t - last_print) > 1000)
-  // {
-  //   graphCaps();
-  // }
+  unsigned long current_t = millis();
+  if ((current_t - last_print) > 250)
+  {
+    graphCaps();
+  }
 
   // calculate 2-dimensional position
   // A (-1, 1); B (-1, -1); C (1, 1); D(1, -1)
@@ -271,7 +274,7 @@ void read_meas()
 
   // refresh mins and maxes every 10 seconds
   unsigned long curr_t = millis();
-  if ((curr_t - last_t) > 10000)
+  if ((curr_t - last_t) > 3000)
   {
     for (size_t i = 0; i < 4; i++)
     {
@@ -381,20 +384,26 @@ void swipe(char dir)
 
 void graphCaps()
 {
-  // for (size_t i = 0; i < 4; i++)
-  // {
-  //   Serial.print(capacitances[i]);
-  //   Serial.print(" ");
-  // }
-  // Serial.println();
-  for (size_t i = 0; i < 4; i++)
+  if (BLE_ON)
   {
-    char strcap[10];
-    float_to_str(strcap, 10, norms[i]);
-    blehid.keySequence(strcap, 50);
-    blehid.keyPress(' ');
-    delay(50);
-    blehid.keyRelease();
+    for (size_t i = 0; i < 1; i++)
+    {
+      char strcap[10];
+      float_to_str(strcap, 10, norms[i]);
+      blehid.keySequence(strcap, 50);
+      blehid.keyPress(' ');
+      delay(50);
+      blehid.keyRelease();
+    }
+  }
+  else
+  {
+    for (size_t i = 0; i < 4; i++)
+    {
+      Serial.print(capacitances[i]);
+      Serial.print(" ");
+    }
+    Serial.println();
   }
 }
 
@@ -436,26 +445,29 @@ void startAdv(void)
 void set_keyboard_led(uint8_t led_bitmap)
 {
   // light up Red Led if any bits is set
-  if ( led_bitmap )
+  if (led_bitmap)
   {
-    ledOn( LED_RED );
+    ledOn(LED_RED);
   }
   else
   {
-    ledOff( LED_RED );
+    ledOff(LED_RED);
   }
 }
 
-void float_to_str(char* out, int buffsize, float val) {
+void float_to_str(char *out, int buffsize, float val)
+{
   itoa(val, out, 10);
   int i = 0;
-  while (out[i]) {
+  while (out[i])
+  {
     i++;
   }
-  if (i < buffsize - 5) {
+  if (i < buffsize - 5)
+  {
     out[i] = '.';
-    out[i+1] = '0' + ((int) (val * 10) % 10);
-    out[i+2] = '0' + ((int) (val * 100) % 10);
-    out[i+3] = '\0';
+    out[i + 1] = '0' + ((int)(val * 10) % 10);
+    out[i + 2] = '0' + ((int)(val * 100) % 10);
+    out[i + 3] = '\0';
   }
 }
