@@ -232,6 +232,8 @@ void loop() {
   }
   while (done != 0xF);
   read_meas(toggle);
+
+  delay(2000);
 }
 
 // **************************************************************
@@ -370,19 +372,19 @@ void read_meas(bool toggle) {
       } else {
         if (abs(integral_vert) > abs(integral_horz)) { // vertical
           if (integral_vert < down_thresh) {
-            blehid.keyPress('D');
+            // blehid.keyPress('D');
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
             integral_horz = (float) 0;
           } else if (integral_vert > up_thresh) {
-            blehid.keyPress('U');
+            // blehid.keyPress('U');
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
             integral_horz = (float) 0;
           } else if (integral_vert != 0) {
-            blehid.keyPress('T');
+            // blehid.keyPress('T');
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
@@ -390,21 +392,21 @@ void read_meas(bool toggle) {
           }
         } else if (abs(integral_vert) < abs(integral_horz)) { // horizontal
           if (integral_horz < left_thresh) {
-            blehid.keyPress('L');
+            // blehid.keyPress('L');
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
             integral_horz = (float) 0;
 
           } else if (integral_horz > right_thresh) {
-            blehid.keyPress('R');
+            // blehid.keyPress('R');
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
             integral_horz = (float) 0;
 
           } else if (integral_horz != 0) {
-            blehid.keyPress('T');;
+            // blehid.keyPress('T');
             deriv_sum_vert = (float) 0;
             integral_vert = (float) 0;
             deriv_sum_horz = (float) 0;
@@ -418,18 +420,26 @@ void read_meas(bool toggle) {
         float_to_str(strcap, 10, normD);
         blehid.keySequence(strcap, 50);
         blehid.keyPress(' ');
+        delay(50);
+        blehid.keyRelease();
 
         float_to_str(strcap, 10, normA);
         blehid.keySequence(strcap, 50);
         blehid.keyPress(' ');
+        delay(50);
+        blehid.keyRelease();
 
         float_to_str(strcap, 10, normB);
         blehid.keySequence(strcap, 50);
         blehid.keyPress(' ');
+        delay(50);
+        blehid.keyRelease();
 
         float_to_str(strcap, 10, normC);
         blehid.keySequence(strcap, 50);
         blehid.keyPress(' ');
+        delay(50);
+        blehid.keyRelease();
 
         last_print = current_t;
       }
