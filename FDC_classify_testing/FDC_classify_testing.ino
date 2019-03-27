@@ -367,16 +367,17 @@ int sensor(char c)
 void swipe(char dir)
 {
   blehid.keyPress(dir);
-  blehid.keyPress(' ');
-  char buffer[15];
-  float_to_str(buffer, 15, integral_horz);
-  blehid.keySequence(buffer, 50);
-  blehid.keyPress(' ');
-  float_to_str(buffer, 15, integral_vert);
-  blehid.keySequence(buffer, 50);
-  blehid.keyPress('\n');
+  delay(300);
+  // blehid.keyPress(' ');
+  // char buffer[15];
+  // float_to_str(buffer, 15, integral_horz);
+  // blehid.keySequence(buffer, 50);
+  // blehid.keyPress(' ');
+  // float_to_str(buffer, 15, integral_vert);
+  // blehid.keySequence(buffer, 50);
+  // blehid.keyPress('\n');
   blehid.keyRelease();
-
+  delay(300);
   // Serial.print({dir});
   // Serial.print(" ");
   // Serial.print(integral_horz);
