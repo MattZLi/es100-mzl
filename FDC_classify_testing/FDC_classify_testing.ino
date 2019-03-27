@@ -11,7 +11,7 @@
 #include <bluefruit.h>  // Bluetooth by Adafruit
 #define FLOAT_MAX 10000.
 
-#define BLE_ON false
+#define BLE_ON true
 
 BLEDis bledis;
 BLEHidAdafruit blehid;
@@ -150,8 +150,8 @@ void setup()
 
     // Set up and start advertising
     startAdv();
-    delay(3000);
   }
+  delay(3000);
 }
 
 // *********************************************************************
@@ -207,14 +207,14 @@ void read_meas()
     }
     else
     {
-      norms[i] = (capacitances[i] - mins[i]) / (maxes[sensor('d')] - mins[sensor('d')]);
+      norms[i] = (capacitances[i] - mins[i]) / (maxes[i] - mins[i]);
     }
   }
-  unsigned long current_t = millis();
-  if ((current_t - last_print) > 250)
-  {
-    graphCaps();
-  }
+  // unsigned long current_t = millis();
+  // if ((current_t - last_print) > 250)
+  // {
+  //   graphCaps();
+  // }
 
   // calculate 2-dimensional position
   // A (-1, 1); B (-1, -1); C (1, 1); D(1, -1)
@@ -367,8 +367,16 @@ int sensor(char c)
 void swipe(char dir)
 {
   blehid.keyPress(dir);
-  delay(50);
+  blehid.keyPress(' ');
+  char buffer[15];
+  float_to_str(buffer, 15, integral_horz);
+  blehid.keySequence(buffer, 50);
+  blehid.keyPress(' ');
+  float_to_str(buffer, 15, integral_vert);
+  blehid.keySequence(buffer, 50);
+  blehid.keyPress('\n');
   blehid.keyRelease();
+
   // Serial.print({dir});
   // Serial.print(" ");
   // Serial.print(integral_horz);
@@ -392,7 +400,6 @@ void graphCaps()
       float_to_str(strcap, 10, norms[i]);
       blehid.keySequence(strcap, 50);
       blehid.keyPress(' ');
-      delay(50);
       blehid.keyRelease();
     }
   }
@@ -466,8 +473,8 @@ void float_to_str(char *out, int buffsize, float val)
   if (i < buffsize - 5)
   {
     out[i] = '.';
-    out[i + 1] = '0' + ((int)(val * 10) % 10);
-    out[i + 2] = '0' + ((int)(val * 100) % 10);
+    out[i + 1] = '0' + ((int)(abs(val) * 10) % 10);
+    out[i + 2] = '0' + ((int)(abs(val) * 100) % 10);
     out[i + 3] = '\0';
   }
 }
