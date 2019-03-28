@@ -11,7 +11,7 @@
 #include <bluefruit.h>  // Bluetooth by Adafruit
 #define FLOAT_MAX 10000.
 
-#define BLE_ON true
+#define BLE_ON false
 
 BLEDis bledis;
 BLEHidAdafruit blehid;
@@ -46,7 +46,6 @@ QueueArray<float> mag_queue;
 
 // raw capacitance values
 float capacitances[] = {0., 0., 0., 0.};
-;
 
 // magnitude and threshold
 float mag = (float)0.0;
@@ -57,7 +56,6 @@ float abs_mag = (float)0.0;
 
 // min and max, used to normalize caps
 float mins[] = {FLOAT_MAX, FLOAT_MAX, FLOAT_MAX, FLOAT_MAX};
-;
 float maxes[] = {0., 0., 0., 0.};
 
 // timer to track when to refresh min/max
@@ -66,7 +64,6 @@ unsigned long last_print = 0;
 
 // buffer for previous min/max
 float temp_mins[] = {FLOAT_MAX, FLOAT_MAX, FLOAT_MAX, FLOAT_MAX};
-;
 float temp_maxes[] = {0., 0., 0., 0.};
 
 // normalized
@@ -191,8 +188,6 @@ void read_meas()
     val = ((msb << 16) + lsb) >> 8; // 24 bit combined MSB and LSB
     cap = (float)val * gain;        // convert to pf
 
-    //      Serial.print(cap);
-    //      Serial.print(" ");    // needed to delienate between next series
     // add measurements to buffer for each MEASx
     capacitances[i] = cap;
 
@@ -213,8 +208,9 @@ void read_meas()
   // unsigned long current_t = millis();
   // if ((current_t - last_print) > 250)
   // {
-  //   graphCaps();
+    graphCaps();
   // }
+  // graphNorms();
 
   // calculate 2-dimensional position
   // A (-1, 1); B (-1, -1); C (1, 1); D(1, -1)
@@ -274,7 +270,7 @@ void read_meas()
 
   // refresh mins and maxes every 10 seconds
   unsigned long curr_t = millis();
-  if ((curr_t - last_t) > 3000)
+  if ((curr_t - last_t) > 10000)
   {
     for (size_t i = 0; i < 4; i++)
     {
@@ -366,8 +362,8 @@ int sensor(char c)
 
 void swipe(char dir)
 {
-  blehid.keyPress(dir);
-  delay(300);
+  // blehid.keyPress(dir);
+  // // delay(300);
   // blehid.keyPress(' ');
   // char buffer[15];
   // float_to_str(buffer, 15, integral_horz);
@@ -376,8 +372,10 @@ void swipe(char dir)
   // float_to_str(buffer, 15, integral_vert);
   // blehid.keySequence(buffer, 50);
   // blehid.keyPress('\n');
-  blehid.keyRelease();
-  delay(300);
+
+  // blehid.keyRelease();
+  // // delay(300);
+
   // Serial.print({dir});
   // Serial.print(" ");
   // Serial.print(integral_horz);
@@ -408,9 +406,33 @@ void graphCaps()
   {
     for (size_t i = 0; i < 4; i++)
     {
-      Serial.print(capacitances[i]);
+      Serial.print(norms[i]);
       Serial.print(" ");
     }
+    Serial.println();
+  }
+}
+
+void graphNorms()
+{
+  if (!BLE_ON)
+  {
+    Serial.print(pos_horz);
+    Serial.print(" ");
+    Serial.print(pos_vert);
+    Serial.print(" ");
+    Serial.print(mag_horz);
+    Serial.print(" ");
+    Serial.print(mag_vert);
+    Serial.print(" ");
+    Serial.print(deriv_sum_horz);
+    Serial.print(" ");
+    Serial.print(deriv_sum_vert);
+    Serial.print(" ");
+    Serial.print(integral_horz);
+    Serial.print(" ");
+    Serial.print(integral_vert);
+    Serial.print(" ");
     Serial.println();
   }
 }
