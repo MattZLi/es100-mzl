@@ -11,7 +11,7 @@
 #include <bluefruit.h>  // Bluetooth by Adafruit
 #define FLOAT_MAX 10000.
 
-#define BLE_ON false
+#define BLE_ON true
 
 BLEDis bledis;
 BLEHidAdafruit blehid;
@@ -108,13 +108,17 @@ void setup()
   Serial.begin(115200); // start serial communication at 115200 bps
 
   write16(FDC_CONFIG, 0x8000); // Issue Reset Command to chip
-
+  delay(50);
   // Setup the MEASx Registers for single ended measurements, CINx to MEASx
   //
   write16(FDC_CONM1, 0x1C00);
+  delay(50);
   write16(FDC_CONM2, 0x3C00);
+  delay(50);
   write16(FDC_CONM3, 0x5C00);
+  delay(50);
   write16(FDC_CONM4, 0x7C00);
+  delay(50);
 
   // Setup FDC_Config Register for
   //     400 Samples/sec Rate,  (2.5mSec / sample)
@@ -208,7 +212,7 @@ void read_meas()
   // unsigned long current_t = millis();
   // if ((current_t - last_print) > 250)
   // {
-    graphCaps();
+    // graphCaps();
   // }
   // graphNorms();
 
@@ -343,18 +347,35 @@ bool QueueEqual(QueueArray<int> *A, QueueArray<int> *B)
   return true;
 }
 
+// int sensor(char c)
+// {
+//   switch (c)
+//   {
+//   case 'a':
+//     return 1;
+//   case 'b':
+//     return 2;
+//   case 'c':
+//     return 3;
+//   case 'd':
+//     return 0;
+//   default:
+//     return -1;
+//   }
+// }
+
 int sensor(char c)
 {
   switch (c)
   {
   case 'a':
-    return 1;
-  case 'b':
-    return 2;
-  case 'c':
-    return 3;
-  case 'd':
     return 0;
+  case 'b':
+    return 1;
+  case 'c':
+    return 2;
+  case 'd':
+    return 3;
   default:
     return -1;
   }
@@ -362,8 +383,8 @@ int sensor(char c)
 
 void swipe(char dir)
 {
-  // blehid.keyPress(dir);
-  // // delay(300);
+  blehid.keyPress(dir);
+  delay(300);
   // blehid.keyPress(' ');
   // char buffer[15];
   // float_to_str(buffer, 15, integral_horz);
@@ -373,8 +394,8 @@ void swipe(char dir)
   // blehid.keySequence(buffer, 50);
   // blehid.keyPress('\n');
 
-  // blehid.keyRelease();
-  // // delay(300);
+  blehid.keyRelease();
+  delay(300);
 
   // Serial.print({dir});
   // Serial.print(" ");
@@ -417,22 +438,28 @@ void graphNorms()
 {
   if (!BLE_ON)
   {
+    for (size_t i = 0; i < 4; i++)
+    {
+      Serial.print(norms[i]);
+      Serial.print(" ");
+    }
     Serial.print(pos_horz);
     Serial.print(" ");
     Serial.print(pos_vert);
     Serial.print(" ");
-    Serial.print(mag_horz);
-    Serial.print(" ");
-    Serial.print(mag_vert);
-    Serial.print(" ");
-    Serial.print(deriv_sum_horz);
-    Serial.print(" ");
-    Serial.print(deriv_sum_vert);
-    Serial.print(" ");
-    Serial.print(integral_horz);
-    Serial.print(" ");
-    Serial.print(integral_vert);
-    Serial.print(" ");
+    // Serial.print(mag_horz);
+    // Serial.print(" ");
+    // Serial.print(mag_vert);
+    // Serial.print(" ");
+    // Serial.print(deriv_sum_horz);
+    // Serial.print(" ");
+    // Serial.print(deriv_sum_vert);
+    // Serial.print(" ");
+    // Serial.print(integral_horz);
+    // Serial.print(" ");
+    // Serial.print(integral_vert);
+    // Serial.print(" ");
+
     Serial.println();
   }
 }
