@@ -398,34 +398,6 @@ int sensor(char c)
 
 void swipe(char dir)
 {
-<<<<<<< HEAD
-  if (BLE_ON) {
-    blehid.keyPress(dir);
-    delay(100);
-    // blehid.keyPress(' ');
-    // char buffer[15];
-    // float_to_str(buffer, 15, integral_horz);
-    // blehid.keySequence(buffer, 50);
-    // blehid.keyPress(' ');
-    // float_to_str(buffer, 15, integral_vert);
-    // blehid.keySequence(buffer, 50);
-    // blehid.keyPress('\n');
-    blehid.keyRelease();
-    delay(100);
-  }
-  else {
-    Serial.print({dir});
-    Serial.print(" ");
-    Serial.print(integral_horz);
-    Serial.print(" ");
-    Serial.print(integral_vert);
-    Serial.print(" ");
-    Serial.println();
-  }
-
-
-  
-=======
   blehid.keyPress(dir);
   delay(300);
   // blehid.keyPress(' ');
@@ -447,7 +419,6 @@ void swipe(char dir)
   // Serial.print(integral_vert);
   // Serial.print(" ");
   // Serial.println();
->>>>>>> 53e7889a4e1b98458f81d7b0fbc455cc1ac3ae23
   deriv_sum_vert = 0.;
   integral_vert = 0.;
   deriv_sum_horz = 0.;
