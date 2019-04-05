@@ -99,11 +99,6 @@ float up_thresh = 0.7;
 float left_thresh = -0.7;
 float right_thresh = 0.7;
 
-// float down_thresh = -0.4;
-// float up_thresh = 0.4;
-// float left_thresh = -0.4;
-// float right_thresh = 0.4;
-
 // ****************************************************************************************
 // Initialize FDC1004 device
 //
@@ -162,7 +157,7 @@ void setup()
   }
 
   
-  delay(3000);
+  delay(2000);
 }
 
 // *********************************************************************
@@ -219,12 +214,6 @@ void read_meas()
       norms[i] = (capacitances[i] - mins[i]) / (maxes[i] - mins[i]);
     }
   }
-  // unsigned long current_t = millis();
-  // if ((current_t - last_print) > 250)
-  // {
-    // graphCaps();
-  // }
-  // graphNorms();
 
   // calculate 2-dimensional position
   // A (-1, 1); B (-1, -1); C (1, 1); D(1, -1)
@@ -262,28 +251,23 @@ void read_meas()
     bool vertical = abs(integral_vert) > abs(integral_horz);
     if (vertical && integral_vert < down_thresh)
     {
-      // swipe('D');
-      swipe('n');
+      swipe('D');
     }
     else if (vertical && integral_vert > up_thresh)
     {
-      // swipe('U');
-      swipe('n');
+      swipe('U');
     }
     else if (!vertical && integral_horz < left_thresh)
     {
-      // swipe('L');
-      swipe('n');
+      swipe('L');
     }
     else if (!vertical && integral_horz > right_thresh)
     {
-      // swipe('R');
-      swipe('n');
+      swipe('R');
     }
     else if (integral_vert != 0 && integral_horz != 0)
     {
-      // swipe('T');
-      swipe('p');
+      swipe('T');
     }
   }
 
@@ -362,23 +346,6 @@ bool QueueEqual(QueueArray<int> *A, QueueArray<int> *B)
   return true;
 }
 
-// int sensor(char c)
-// {
-//   switch (c)
-//   {
-//   case 'a':
-//     return 1;
-//   case 'b':
-//     return 2;
-//   case 'c':
-//     return 3;
-//   case 'd':
-//     return 0;
-//   default:
-//     return -1;
-//   }
-// }
-
 int sensor(char c)
 {
   switch (c)
@@ -400,25 +367,9 @@ void swipe(char dir)
 {
   blehid.keyPress(dir);
   delay(300);
-  // blehid.keyPress(' ');
-  // char buffer[15];
-  // float_to_str(buffer, 15, integral_horz);
-  // blehid.keySequence(buffer, 50);
-  // blehid.keyPress(' ');
-  // float_to_str(buffer, 15, integral_vert);
-  // blehid.keySequence(buffer, 50);
-  // blehid.keyPress('\n');
-
   blehid.keyRelease();
   delay(300);
 
-  // Serial.print({dir});
-  // Serial.print(" ");
-  // Serial.print(integral_horz);
-  // Serial.print(" ");
-  // Serial.print(integral_vert);
-  // Serial.print(" ");
-  // Serial.println();
   deriv_sum_vert = 0.;
   integral_vert = 0.;
   deriv_sum_horz = 0.;
@@ -445,9 +396,7 @@ void graphCaps()
       Serial.print(norms[i]);
       Serial.print(" ");
     }
-    // Serial.print(pos_horz);
-    // Serial.print(" ");
-    // Serial.print(pos_vert);
+
     Serial.println();
   }
 }
@@ -465,18 +414,18 @@ void graphNorms()
     Serial.print(" ");
     Serial.print(pos_vert);
     Serial.print(" ");
-    // Serial.print(mag_horz);
-    // Serial.print(" ");
-    // Serial.print(mag_vert);
-    // Serial.print(" ");
-    // Serial.print(deriv_sum_horz);
-    // Serial.print(" ");
-    // Serial.print(deriv_sum_vert);
-    // Serial.print(" ");
-    // Serial.print(integral_horz);
-    // Serial.print(" ");
-    // Serial.print(integral_vert);
-    // Serial.print(" ");
+    Serial.print(mag_horz);
+    Serial.print(" ");
+    Serial.print(mag_vert);
+    Serial.print(" ");
+    Serial.print(deriv_sum_horz);
+    Serial.print(" ");
+    Serial.print(deriv_sum_vert);
+    Serial.print(" ");
+    Serial.print(integral_horz);
+    Serial.print(" ");
+    Serial.print(integral_vert);
+    Serial.print(" ");
 
     Serial.println();
   }
