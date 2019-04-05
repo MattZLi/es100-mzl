@@ -224,6 +224,7 @@ void read_meas()
   // {
     // graphCaps();
   // }
+  // graphNorms();
 
   // calculate 2-dimensional position
   // A (-1, 1); B (-1, -1); C (1, 1); D(1, -1)
@@ -288,7 +289,7 @@ void read_meas()
 
   // refresh mins and maxes every 10 seconds
   unsigned long curr_t = millis();
-  if ((curr_t - last_t) > 3000)
+  if ((curr_t - last_t) > 10000)
   {
     for (size_t i = 0; i < 4; i++)
     {
@@ -397,6 +398,7 @@ int sensor(char c)
 
 void swipe(char dir)
 {
+<<<<<<< HEAD
   if (BLE_ON) {
     blehid.keyPress(dir);
     delay(100);
@@ -423,6 +425,29 @@ void swipe(char dir)
 
 
   
+=======
+  blehid.keyPress(dir);
+  delay(300);
+  // blehid.keyPress(' ');
+  // char buffer[15];
+  // float_to_str(buffer, 15, integral_horz);
+  // blehid.keySequence(buffer, 50);
+  // blehid.keyPress(' ');
+  // float_to_str(buffer, 15, integral_vert);
+  // blehid.keySequence(buffer, 50);
+  // blehid.keyPress('\n');
+
+  blehid.keyRelease();
+  delay(300);
+
+  // Serial.print({dir});
+  // Serial.print(" ");
+  // Serial.print(integral_horz);
+  // Serial.print(" ");
+  // Serial.print(integral_vert);
+  // Serial.print(" ");
+  // Serial.println();
+>>>>>>> 53e7889a4e1b98458f81d7b0fbc455cc1ac3ae23
   deriv_sum_vert = 0.;
   integral_vert = 0.;
   deriv_sum_horz = 0.;
@@ -452,6 +477,36 @@ void graphCaps()
     // Serial.print(pos_horz);
     // Serial.print(" ");
     // Serial.print(pos_vert);
+    Serial.println();
+  }
+}
+
+void graphNorms()
+{
+  if (!BLE_ON)
+  {
+    for (size_t i = 0; i < 4; i++)
+    {
+      Serial.print(norms[i]);
+      Serial.print(" ");
+    }
+    Serial.print(pos_horz);
+    Serial.print(" ");
+    Serial.print(pos_vert);
+    Serial.print(" ");
+    // Serial.print(mag_horz);
+    // Serial.print(" ");
+    // Serial.print(mag_vert);
+    // Serial.print(" ");
+    // Serial.print(deriv_sum_horz);
+    // Serial.print(" ");
+    // Serial.print(deriv_sum_vert);
+    // Serial.print(" ");
+    // Serial.print(integral_horz);
+    // Serial.print(" ");
+    // Serial.print(integral_vert);
+    // Serial.print(" ");
+
     Serial.println();
   }
 }
